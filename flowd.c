@@ -23,6 +23,20 @@ FILE *fsnap, *origerr;
 char *saved_argv[20];
 char *confname;
 
+struct head1 {
+  short unsigned int version, count;
+  unsigned int uptime, curtime, curnanosec;
+} *head1;
+
+struct data1 {
+  unsigned int srcaddr, dstaddr, nexthop;
+  unsigned short int input, output;
+  unsigned int pkts, bytes, first, last;
+  unsigned short int srcport, dstport, pad;
+  unsigned char prot, tos, flags, pad1, pad2, pad3;
+  unsigned int reserved;
+} *data1;
+
 struct head5 {
   short unsigned int version, count;
   unsigned int uptime, curtime, curnanosec;
@@ -182,48 +196,84 @@ int main(int argc, char *argv[])
   {
     if (n==0) continue;
     ver = ntohs(*(short int *)buf);
-    if (ver!=5)
+    if (ver==1)
+    {
+      if (n<sizeof(struct head1))
+      { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head5));
+        continue;
+      }
+      head1 = (struct head1 *)buf;
+#if 0
+      printf("Ver=1, count=%u, uptime=%lu, curtime=%lu, seq=%lu\n",
+             ntohs(head1->count), ntohl(head1->uptime), ntohl(head1->curtime),
+             ntohl(head1->seq));
+#endif
+      if (n!=sizeof(*head1)+ntohs(head1->count)*sizeof(*data1))
+      { printf("Error: received %d bytes, needed %d\n", n,
+               sizeof(*head1)+ntohs(head1->count)*sizeof(*data1));
+        continue;
+      }
+      data1 = (struct data1 *)(head1+1);
+      count=ntohs(head1->count);
+      for (i=0; i<count; i++)
+      {
+        unsigned long bytes;
+        unsigned short input, output;
+
+        bytes=ntohl(data1[i].bytes);
+        input=ntohs(data1[i].input);
+        output=ntohs(data1[i].output);
+        add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
+                 1, 0, bytes, input, output, 0, 0, data1[i].prot);
+        add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
+                 0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot);
+      }
+    }
+    else if (ver==5)
+    {
+      if (n<sizeof(struct head5))
+      { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head5));
+        continue;
+      }
+      head5 = (struct head5 *)buf;
+#if 0
+      printf("Ver=5, count=%u, uptime=%lu, curtime=%lu, seq=%lu\n",
+             ntohs(head5->count), ntohl(head5->uptime), ntohl(head5->curtime),
+             ntohl(head5->seq));
+#endif
+      if (n!=sizeof(*head5)+ntohs(head5->count)*sizeof(*data5))
+      { printf("Error: received %d bytes, needed %d\n", n,
+               sizeof(*head5)+ntohs(head5->count)*sizeof(*data5));
+        continue;
+      }
+#if 0
+      if (seq && seq!=ntohl(head5->seq))
+        printf("Warning: seq mismatch (must %lu, real %lu)\n",
+               seq, ntohl(head5->seq));
+#endif
+      seq = ntohl(head5->seq)+ntohs(head5->count);
+      data5 = (struct data5 *)(head5+1);
+      count=ntohs(head5->count);
+      for (i=0; i<count; i++)
+      {
+        unsigned long bytes;
+        unsigned short input, output, src_as, dst_as;
+
+        bytes=ntohl(data5[i].bytes);
+        input=ntohs(data5[i].input);
+        output=ntohs(data5[i].output);
+        src_as=ntohs(data5[i].src_as);
+        dst_as=ntohs(data5[i].dst_as);
+        add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
+                 1, 0, bytes, input, output, src_as, dst_as, data5[i].prot);
+        add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
+                 0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
+                 data5[i].prot);
+      }
+    }
+    else
     { printf("Error: unknown netflow version %d ignored\n", ver);
       continue;
-    }
-    if (n<sizeof(struct head5))
-    { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head5));
-      continue;
-    }
-    head5 = (struct head5 *)buf;
-#if 0
-    printf("Ver=5, count=%u, uptime=%lu, curtime=%lu, seq=%lu\n",
-           ntohs(head5->count), ntohl(head5->uptime), ntohl(head5->curtime),
-           ntohl(head5->seq));
-#endif
-    if (n!=sizeof(*head5)+ntohs(head5->count)*sizeof(*data5))
-    { printf("Error: received %d bytes, needed %d\n", n,
-             sizeof(*head5)+ntohs(head5->count)*sizeof(*data5));
-      continue;
-    }
-#if 0
-    if (seq && seq!=ntohl(head5->seq))
-      printf("Warning: seq mismatch (must %lu, real %lu)\n",
-             seq, ntohl(head5->seq));
-#endif
-    seq = ntohl(head5->seq)+ntohs(head5->count);
-    data5 = (struct data5 *)(head5+1);
-    count=ntohs(head5->count);
-    for (i=0; i<count; i++)
-    {
-      unsigned long bytes;
-      unsigned short input, output, src_as, dst_as;
-
-      bytes=ntohl(data5[i].bytes);
-      input=ntohs(data5[i].input);
-      output=ntohs(data5[i].output);
-      src_as=ntohs(data5[i].src_as);
-      dst_as=ntohs(data5[i].dst_as);
-      add_stat(remote_addr.sin_addr.s_addr, data5[i].srcaddr, data5[i].dstaddr,
-               1, 0, bytes, input, output, src_as, dst_as, data5[i].prot);
-      add_stat(remote_addr.sin_addr.s_addr, data5[i].srcaddr, data5[i].dstaddr,
-               0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
-               data5[i].prot);
     }
     if (last_write+write_interval<=time(NULL))
       write_stat();
