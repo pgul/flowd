@@ -295,9 +295,9 @@ int config(char *name)
     pa->next = NULL;
     pa->reverse=pa->fallthru=0;
     if (cur_router.addr!=(u_long)-1)
-      pa->src=cur_router.addr; /* mask /32 */
+      pa->src=ntohl(cur_router.addr);	/* mask /32 */
     else
-      pa->src=pa->srcmask=0;   /* match any */
+      pa->src=pa->srcmask=0;		/* match any */
     pa->not=0;
     if (attrhead==NULL)
       attrhead = pa;
@@ -521,7 +521,7 @@ static int snmpwalk(struct router_t *router)
             data[nifaces++].ifindex=(unsigned short)vars->name_loc[vars->name_length-1];
           }
           debug(6, "ifindex %u val '%s'", data[nifaces-1].ifindex, data[nifaces-1].val);
-          varslen += vars->val_len+1;
+          varslen += strlen(data[nifaces].val)+1;
           if ((vars->type != SNMP_ENDOFMIBVIEW) &&
               (vars->type != SNMP_NOSUCHOBJECT) &&
               (vars->type != SNMP_NOSUCHINSTANCE)) {
