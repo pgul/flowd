@@ -34,4 +34,25 @@ AC_ARG_WITH(debug,
      [  --with-debug            generate debug info],
      [CFLAGS="$CFLAGS -g"], [CFLAGS="$CFLAGS -O3"])
 
+nl Set shmem params
+nbits=2
+maxprefix=24
+AC_ARG_WITH(nbits,
+     [  --with-nbits=NBITS      set number of bits for class of addr (2)],
+     [nbits=$withval],[])
+AC_ARG_WITH(minprefix,
+     [  --with-maxprefix=LEN    set maximum prefix length (24)],
+     [maxprefix=$withval],[])
+[if echo $nbits | grep -q '[^0-9]' || [ $nbits -ne 1 -a $nbits -ne 2 -a $nbits -ne 4 -a $nbits -ne 8 -a $nbits -ne 16 ]]
+then
+	AC_ERROR(Incorrect nbits value $nbits, must be 1..16, power of 2)
+fi
+[if echo $maxprefix | grep -q '[^0-9]' || [ $maxprefix -gt 32 -o $maxprefix -lt 16 ]]
+then
+	AC_ERROR(Incorrect nbits value $nbits, must be 1..16, power of 2)
+fi
+
+AC_DEFINE_UNQUOTED(NBITS, $nbits)
+AC_DEFINE_UNQUOTED(MAXPREFIX, $maxprefix)
+
 AC_OUTPUT(Makefile)
