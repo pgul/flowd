@@ -95,7 +95,7 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
     fprintf(stderr, "Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
            ((char *)ip)[3], ((char *)ip)[2],
            ((char *)ip)[1], ((char *)ip)[0],
-           atoi(p+1),
+           atoi(p1+1),
            ((char *)mask)[3], ((char *)mask)[2],
            ((char *)mask)[1], ((char *)mask)[0]);
     fprintf(stderr, "ip & mask is %u.%u.%u.%u\n",
@@ -181,6 +181,8 @@ static int parse_line(char *str)
   if (str[0]=='\0') return 0;
   for (p=str+strlen(str)-1; isspace(*p); *p--='\0');
   // for (p=str; *p; p++) *p=tolower(*p);
+  if (preproc)
+    printf("%s\n", str);
   p=str;
   if (strncasecmp(p, "log=", 4)==0)
   { strncpy(logname, p+4, sizeof(logname)-1);
@@ -433,6 +435,9 @@ static int parse_file(FILE *f)
 	  continue;
 	}
 	*p1='\0';
+      } else
+      { for (p1=p; *p1 && !isspace(*p1); *p1++);
+        *p1='\0';
       }
       if ((finc=fopen(p, "r")) == NULL)
       {
@@ -518,6 +523,8 @@ static int parse_file(FILE *f)
 	  continue;
 	}
       }
+      fflush(stdout);
+      fflush(stderr);
       pid=fork();
       if (pid<0)
       { fprintf(stderr, "Can't fork: %s!\n", strerror(errno));
@@ -625,7 +632,7 @@ int config(char *name)
       return 1;
     }
   }
-  if (access(aclname, R_OK))
+  if (access(aclname, R_OK)==0)
     fromacl=1;
   else if (fromacl)
   { fprintf(stderr, "Can't read acl %s!\n", aclname);

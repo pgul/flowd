@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #ifdef DO_PERL
 #include <EXTERN.h>
 #include <perl.h>
@@ -46,7 +48,17 @@ int PerlStart(char *perlfile)
 
   perlargs[1] = perlfile;
   if (access(perlfile, R_OK))
-  { printf("Can't read %s: %s", perlfile, strerror(errno));
+  { char errstr[256];
+#ifdef HAVE_STRERROR_R
+    strerror_r(errno, errstr, sizeof(errstr));
+#elif defined(HAVE_SYS_ERRLIST)
+    strncpy(errstr, sys_errlist[errno], sizeof(errstr));
+#else
+    /* strange segfault in strerror() on threaded perl */
+    strncpy(errstr, strerror(errno), sizeof(errstr));
+#endif
+    errstr[sizeof(errstr)-1]='\0';
+    printf("Can't read %s: %s\n", perlfile, errstr);
     return 1;
   }
   perl = perl_alloc();

@@ -16,7 +16,7 @@
 #define SIGINFO SIGIO
 #endif
 
-int  sockfd, verbose;
+int  sockfd, verbose, preproc;
 time_t last_write, last_reload;
 long snap_traf;
 FILE *fsnap;
@@ -124,8 +124,10 @@ int usage(void)
   printf("NetFlow collector      " __DATE__ "\n");
   printf("    Usage:\n");
   printf("flowd [-d] [-v] [config]\n");
-  printf("  -d  - daemonize\n");
-  printf("  -v  - increase verbose level\n");
+  printf("  -f <fname>  - use config file <fname>\n");
+  printf("  -d          - daemonize\n");
+  printf("  -v          - increase verbose level\n");
+  printf("  -E          - dump preprocessed config and exit\n");
   return 0;
 }
 
@@ -139,12 +141,14 @@ int main(int argc, char *argv[])
   confname=CONFNAME;
   daemonize=0;
 
-  while ((i=getopt(argc, argv, "dh?v")) != -1)
+  while ((i=getopt(argc, argv, "dh?vEf:")) != -1)
   {
     switch (i)
     {
       case 'd': daemonize=1; break;
       case 'v': verbose++;   break;
+      case 'E': preproc=1;   break;
+      case 'f': confname=strdup(optarg); break;
       case 'h':
       case '?': usage(); return 1;
       default:  fprintf(stderr, "Unknown option -%c\n", (char)i);
@@ -158,6 +162,8 @@ int main(int argc, char *argv[])
   { fprintf(stderr, "Config error\n");
     return 1;
   }
+  if (preproc)
+    return 0;
   if ((sockfd=socket(PF_INET, SOCK_DGRAM, 0)) == -1)
   { printf("socket: %s\n", strerror(errno));
     return 1;
