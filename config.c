@@ -223,7 +223,7 @@ int config(char *name)
         for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p1++);
         if (*p1) *p1++='\0';
         for (j=0; j<i; j++)
-          if (strcmp(uaname[i], uaname[j]) == 0)
+          if (strcmp(p, uaname[j]) == 0)
             break;
         uaindex[i]=j;
         if (j<i)
