@@ -7,7 +7,6 @@
 #include <time.h>
 #include <errno.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include "flowd.h"
