@@ -167,8 +167,7 @@ int main(int argc, char *argv[])
       src_as=ntohs(data5[i].src_as);
       dst_as=ntohs(data5[i].dst_as);
       add_stat(remote_addr.sin_addr.s_addr, data5[i].srcaddr, data5[i].dstaddr,
-               1, data5[i].nexthop, bytes, input, output, src_as, dst_as,
-               data5[i].prot);
+               1, 0, bytes, input, output, src_as, dst_as, data5[i].prot);
       add_stat(remote_addr.sin_addr.s_addr, data5[i].srcaddr, data5[i].dstaddr,
                0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
                data5[i].prot);

@@ -11,7 +11,7 @@
 #define MAXCOLOIP	16
 #define MAXPREFIX       24
 
-#define NBITS           2
+#define NBITS           4
 #define MAPSIZE         (1<<MAXPREFIX)/(8/NBITS)
 #define MAPKEY          (*(long *)"gul@")
 
