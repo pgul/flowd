@@ -403,6 +403,7 @@ int config(char *name)
 
 #ifdef DO_SNMP
 /* find ifindex by snmp param */
+#include <ucd-snmp/ucd-snmp-config.h>
 #include <ucd-snmp/asn1.h>
 #include <ucd-snmp/snmp.h>
 #include <ucd-snmp/snmp_api.h>

@@ -4,6 +4,7 @@ AC_INIT(flowd.c)
 
 dnl Checks for programs.
 AC_PROG_CC
+AC_PROG_AWK
 AC_PATH_PROG(PERL, perl, perl)
 
 CFLAGS=
@@ -138,16 +139,18 @@ case x$withval in
     ;;
   *)
     AC_CHECK_FUNCS(strdup)
-    AC_CHECK_HEADERS(stdarg.h ucd-snmp/snmp.h)
+    AC_CHECK_HEADERS(stdarg.h ucd-snmp/ucd-snmp-config.h)
     OLD_CFLAGS=$CFLAGS
-    case x$ac_cv_header_ucd_snmp_snmp_h in
+    case x$ac_cv_header_ucd_snmp_ucd_snmp_config_h in
       xyes)
         snmp_ok=yes
+        AC_DEFINE(HAVE_UCD_SNMP_SNMP_H)
         ;;
       *)
-        AC_MSG_CHECKING(if snmp.h is in /usr/local/include/ucd-snmp)
+        AC_MSG_CHECKING(if ucd-snmp-config.h is in /usr/local/include/ucd-snmp)
         CFLAGS="$CFLAGS -I /usr/local/include"
         AC_TRY_COMPILE([#include <sys/types.h>
+                        #include <ucd-snmp/ucd-snmp-config.h>
                         #include <ucd-snmp/asn1.h>
                         #include <ucd-snmp/snmp.h>], [],
                         AC_MSG_RESULT(yes); snmp_ok=yes,

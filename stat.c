@@ -109,9 +109,16 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
 #ifdef DO_PERL
 static PerlInterpreter *perl = NULL;
 
-void boot_DynaLoader(CV *cv);
+#ifndef pTHX_
+#define pTHX_
+#endif
+#ifndef pTHX
+#define pTHX
+#endif
 
-static void xs_init(void)
+void boot_DynaLoader (pTHX_ CV *);
+
+static void xs_init(pTHX)
 {
   static char *file = __FILE__;
   dXSUB_SYS;
@@ -228,22 +235,22 @@ static void plwrite(char *user, char *src, char *dst, char *direct, int bytes)
 #endif
 
 #ifdef DO_MYSQL
-#define create_utable \
-       "CREATE TABLE IF NOT EXISTS %s (
-              user CHAR(20) NOT NULL,
-              user_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-              UNIQUE (user)
+#define create_utable                                                   \
+       "CREATE TABLE IF NOT EXISTS %s (                                 \
+              user CHAR(20) NOT NULL,                                   \
+              user_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, \
+              UNIQUE (user)                                             \
         )"
-#define create_table \
-       "CREATE TABLE IF NOT EXISTS %s (
-              time TIMESTAMP NOT NULL,
-              user_id INT UNSIGNED NOT NULL,
-              src ENUM(%s) NOT NULL,
-              dst ENUM(%s) NOT NULL,
-              direction ENUM('in', 'out') NOT NULL,
-              bytes INT UNSIGNED NOT NULL,
-              INDEX (user_id),
-              INDEX (time)
+#define create_table                                 \
+       "CREATE TABLE IF NOT EXISTS %s (              \
+              time TIMESTAMP NOT NULL,               \
+              user_id INT UNSIGNED NOT NULL,         \
+              src ENUM(%s) NOT NULL,                 \
+              dst ENUM(%s) NOT NULL,                 \
+              direction ENUM('in', 'out') NOT NULL,  \
+              bytes INT UNSIGNED NOT NULL,           \
+              INDEX (user_id),                       \
+              INDEX (time)                           \
         )"
 static void mysql_err(MYSQL *conn, char *message)
 {
