@@ -310,6 +310,7 @@ void mysql_start(void)
 
 	my_init();
 	load_defaults("my", groups, &myargc, &myargv);
+	optind = 1;
 	while ((c = getopt_long(myargc, myargv, "h:p::u:P:S:T:U:D:", long_options, &option_index)) != EOF)
 	{	switch (c)
 		{
