@@ -13,7 +13,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 
 dnl Checks for library functions.
 
-AC_CHECK_FUNCS(inet_addr)
+AC_CHECK_FUNCS(inet_addr daemon)
 case x$ac_cv_func_inet_addr in
   xno)
     AC_MSG_CHECKING(for inet_addr in -lxnet)

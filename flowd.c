@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -15,7 +16,7 @@
 #define SIGINFO SIGIO
 #endif
 
-int  sockfd;
+int  sockfd, verbose;
 time_t last_write, last_reload;
 long snap_traf;
 FILE *fsnap, *origerr;
@@ -75,17 +76,68 @@ void hup(int signo)
   signal(signo, hup);
 }
 
+
+#ifndef HAVE_DAEMON
+int daemon(int nochdir, int noclose)
+{
+  int i;
+  if (!nochdir) chdir("/");
+  if (!noclose)
+  {
+    i=open("/dev/null", O_RDONLY);
+    if (i!=-1)
+    { if (i>0) dup2(i, 0);
+      close(i);
+    }
+    i=open("/dev/null", O_WRONLY);
+    if (i!=-1)
+    { if (i>1) dup2(i, 1);
+      if (i>2) dup2(i, 2);
+      close(i);
+    }
+  }
+  if ((i=fork()) == -1) return -1;
+  if (i>0) exit(0);
+  setsid();
+  return 0;
+}
+#endif
+
+int usage(void)
+{
+  printf("NetFlow collector      " __DATE__ "\n");
+  printf("    Usage:\n");
+  printf("flowd [-d] [-v] [config]\n");
+  printf("  -d  - daemonize\n");
+  printf("  -v  - increase verbose level\n");
+  return 0;
+}
+
 int main(int argc, char *argv[])
 {
-  int  n, i, count, ver, seq=0;
+  int  n, i, count, ver, seq=0, daemonize;
   FILE *f;
   struct sockaddr_in my_addr, remote_addr;
   char buf[MTU];
 
-  if (argc>1)
-    confname=argv[1];
-  else
-    confname=CONFNAME;
+  confname=CONFNAME;
+  daemonize=0;
+
+  while ((i=getopt(argc, argv, "dh?v")) != -1)
+  {
+    switch (i)
+    {
+      case 'd': daemonize=1; break;
+      case 'v': verbose++;   break;
+      case 'h':
+      case '?': usage(); return 1;
+      default:  fprintf(stderr, "Unknown option -%c\n", (char)i);
+		usage(); return 2;
+    }
+  }
+  if (argc>optind)
+    confname=argv[optind];
+
   if (config(confname))
   { fprintf(stderr, "Config error\n");
     return 1;
@@ -117,6 +169,7 @@ int main(int argc, char *argv[])
   { fprintf(origerr, "reload acl error!\n");
     return 1;
   }
+  if (daemonize && !verbose) daemon(0, 0);
   f=fopen(pidfile, "w");
   if (f)
   { fprintf(f, "%u\n", (unsigned)getpid());

@@ -36,13 +36,14 @@ unsigned mysql_port;
 static struct router_t *routers;
 #endif
 
-void debug(char *format, ...)
+void debug(int level, char *format, ...)
 {
   va_list arg;
   va_start(arg, format);
-#ifdef DEBUG
-  vfprintf(stdout, format, arg);
-#endif
+  if (level<=verbose)
+  { vfprintf(stdout, format, arg);
+    fputs("\n", stdout);
+  }
   va_end(arg);
 }
 
@@ -469,6 +470,7 @@ static int snmpwalk(struct router_t *router)
   session.community = router->community;
   session.community_len = strlen(router->community);
   session.version = ds_get_int(DS_LIBRARY_ID, DS_LIB_SNMPVERSION);
+  debug(1, "Do snmpwalk %s %s", ipbuf, oid);
   if ((ss = snmp_open(&session)) == NULL)
   { snmp_sess_perror("flowd", &session);
     return 1;
@@ -604,7 +606,7 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
   { mid=(left+right)/2;
     if ((i=strcmp(router->data[mid].val, val))==0)
     {
-      debug("ifindex for %s=%s at %s is %d", oid2str(oid), val, 
+      debug(4, "ifindex for %s=%s at %s is %d", oid2str(oid), val, 
             inet_ntoa(*(struct in_addr *)&router->addr), mid);
       return mid;
     }

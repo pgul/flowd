@@ -71,7 +71,7 @@ extern time_t last_write, last_reload;
 extern struct linktype *linkhead;
 extern char logname[], snapfile[], aclname[], pidfile[];
 extern int write_interval, reload_interval;
-extern int fromshmem;
+extern int fromshmem, verbose;
 extern unsigned long bindaddr;
 extern unsigned short port;
 extern long mapkey;
@@ -88,7 +88,7 @@ int  config(char *name);
 classtype getclass(unsigned long addr);
 int  init_map(void);
 void freeshmem(void);
-void debug(char *format, ...);
+void debug(int level, char *format, ...);
 #ifdef DO_PERL
 void exitperl(void);
 int  PerlStart(void);

@@ -799,7 +799,7 @@ CFLAGS=
 
 
 
-for ac_func in inet_addr
+for ac_func in inet_addr daemon
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
 echo "configure:806: checking for $ac_func" >&5
