@@ -82,7 +82,7 @@ int config(char *name)
   attrtail=NULL;
   for (i=0; i<NCLASSES; i++)
   { uaindex[i]=i;
-    snprintf(uaname[i], sizeof(uaname[i])-1, "class%u_", i);
+    snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
   }
   while (fgets(str, sizeof(str), f))
   {

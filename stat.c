@@ -374,7 +374,9 @@ void write_stat(void)
 #else
   for (i=0; i<NCLASSES; i++)
 #endif
-  { if (p>enums)
+  { if (strncmp(uaname[i], "class", 5) == 0)
+      continue;
+    if (p>enums)
     { strcpy(p, ", ");
       p+=2;
     }
