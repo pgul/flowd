@@ -86,7 +86,7 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
   c=*p1;
   *p1='\0';
   if ((addr=inet_addr(p)) == -1) {
-    fprintf(stderr, "Error: %s is not correct IP-address!\n", p);
+    error("Error: %s is not correct IP-address!", p);
     exit(2);
   }
   *ip = ntohl(addr);
@@ -95,13 +95,13 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
   *p1=c;
   if ((*ip & *mask) != *ip)
   { unsigned long masked = (*ip & *mask);
-    fprintf(stderr, "Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
+    warning("Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!",
            ((char *)ip)[3], ((char *)ip)[2],
            ((char *)ip)[1], ((char *)ip)[0],
            atoi(p1+1),
            ((char *)mask)[3], ((char *)mask)[2],
            ((char *)mask)[1], ((char *)mask)[0]);
-    fprintf(stderr, "ip & mask is %u.%u.%u.%u\n",
+    warning("ip & mask is %u.%u.%u.%u",
            ((char *)&masked)[3], ((char *)&masked)[2],
            ((char *)&masked)[1], ((char *)&masked)[0]);
   }
@@ -119,7 +119,7 @@ static void read_port(char *p, u_short *port, u_short proto)
       if ((pe=getprotobynumber(proto)) != NULL)
         sproto=pe->p_name;
     if ((se=getservbyname(p, sproto)) == NULL)
-      fprintf(stderr, "Unknown port %s\n", p);
+      warning("Unknown port %s", p);
     else
       *port=ntohs(se->s_port);
   }
@@ -161,7 +161,7 @@ static void read_proto(char *p, u_short *proto)
     *p1='\0';
     pe=getprotobyname(p);
     if (pe==NULL)
-      fprintf(stderr, "Unknown protocol %s\n", p);
+      warning("Unknown protocol %s", p);
     else
       *proto=pe->p_proto;
     *p1=c;
@@ -245,7 +245,7 @@ static int parse_line(char *str)
     while (p && *p)
     {
       if (i==NCLASSES)
-      { fprintf(stderr, "Too many classes!\n");
+      { warning("Too many classes!");
         break;
       }
       for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p1++);
@@ -269,7 +269,7 @@ static int parse_line(char *str)
   { char *p1 = p+10;
     p=strstr(p1, "::");
     if (p==NULL)
-    { fprintf(stderr, "Incorrect perlwrite=%s ignored!", p1);
+    { warning("Incorrect perlwrite=%s ignored!", p1);
       return 0;
     }
     *p=0;
@@ -332,7 +332,7 @@ static int parse_line(char *str)
     { if (strcmp(p, "any")==0)
         cur_router.addr=(u_long)-1;
       else
-        fprintf(stderr, "Warning: Router %s not found\n", p);
+        warning("Warning: Router %s not found", p);
       return 0;
     }
     /* use only first address */
@@ -440,7 +440,7 @@ static int parse_file(FILE *f)
 	p1=strchr(p, '\"');
 	if (p1==NULL)
 	{
-          fprintf(stderr, "Unmatched quotes in include, ignored:\n%s\n", str);
+          warning("Unmatched quotes in include, ignored: %s", str);
 	  continue;
 	}
 	*p1='\0';
@@ -450,7 +450,7 @@ static int parse_file(FILE *f)
       }
       if ((finc=fopen(p, "r")) == NULL)
       {
-        fprintf(stderr, "Can't open %s: %s, include ignored\n", p, strerror(errno));
+        warning("Can't open %s: %s, include ignored", p, strerror(errno));
 	continue;
       }
       parse_file(finc);
@@ -466,7 +466,7 @@ static int parse_file(FILE *f)
       for (p=str+14; *p && isspace(*p); p++);
       p1=strstr(p, "::");
       if (p1==NULL)
-      { fprintf(stderr, "Incorrect perl_include ignored: %s\n", str);
+      { warning("Incorrect perl_include ignored: %s", str);
         continue;
       }
       *p1='\0';
@@ -474,7 +474,7 @@ static int parse_file(FILE *f)
       *p1=':';
       if (access(perlincfile, R_OK))
       {
-        fprintf(stderr, "Perl include file %s not found, ignored\n", perlincfile);
+        warning("Perl include file %s not found, ignored", perlincfile);
         continue;
       }
       p1+=2;
@@ -491,7 +491,7 @@ static int parse_file(FILE *f)
             p1=strchr(p, '\"');
             if (p1==NULL)
             {
-              fprintf(stderr, "Unmatched quotes in perl_include, params ignored\n");
+              warning("Unmatched quotes in perl_include, params ignored");
               break;
             }
             *p1++='\0';
@@ -503,7 +503,7 @@ static int parse_file(FILE *f)
             p1=strpbrk(p, " ,)");
             if (p1==NULL)
             {
-              fprintf(stderr, "Unmatched brackets in perl_include, params ignored\n");
+              warning("Unmatched brackets in perl_include, params ignored");
               break;
             }
             while (*p1 && isspace(*p1)) *p1++='\0';
@@ -515,19 +515,19 @@ static int parse_file(FILE *f)
           }
           if (*p=='\0')
           {
-            fprintf(stderr, "Unmatched brackets in perl_include, params ignored\n");
+            warning("Unmatched brackets in perl_include, params ignored");
             break;
           }
           if (*p==')') break;
           if (*p==',') p++;
           if (i==sizeof(perlincargs)/sizeof(perlincargs[0])-1)
-          { fprintf(stderr, "Warning: too many args in perl_include, rest ignored\n");
+          { warning("Too many args in perl_include, rest ignored");
             break;
           }
         }
       perlincargs[i]=NULL;
       if (pipe(h))
-      { fprintf(stderr, "Can't create pipe: %s\n", strerror(errno));
+      { warning("Can't create pipe: %s", strerror(errno));
 	for(i=0; perlincargs[i]; i++)
 	{
           free(perlincargs[i]);
@@ -539,7 +539,7 @@ static int parse_file(FILE *f)
       fflush(stderr);
       pid=fork();
       if (pid<0)
-      { fprintf(stderr, "Can't fork: %s!\n", strerror(errno));
+      { warning("Can't fork: %s!", strerror(errno));
 	close(h[0]);
 	close(h[1]);
 	for(i=0; perlincargs[i]; i++)
@@ -599,7 +599,7 @@ int config(char *name)
 #endif
   f=fopen(name, "r");
   if (f==NULL)
-  { fprintf(stderr, "Can't open %s: %s!\n", name, strerror(errno));
+  { warning("Can't open %s: %s!", name, strerror(errno));
     return -1;
   }
   /* free links and attrs */
@@ -647,14 +647,14 @@ int config(char *name)
 #if NBITS>0
   if (fromshmem)
   { if (init_map())
-    { fprintf(stderr, "Can't init shared memory: %s\n", strerror(errno));
+    { warning("Can't init shared memory: %s", strerror(errno));
       return 1;
     }
   }
   if (access(aclname, R_OK)==0)
     fromacl=1;
   else if (!fromshmem)
-  { fprintf(stderr, "Can't read acl %s!\n", aclname);
+  { warning("Can't read acl %s!", aclname);
     return 1;
   } else
     uaname[0][0]='\0';
@@ -735,7 +735,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   rootlen=MAX_OID_LEN;
   oid=oid2oid(noid);
   if (snmp_parse_oid(oid, root, &rootlen)==NULL)
-  { fprintf(stderr, "Can't parse oid %s\n", oid);
+  { warning("Can't parse oid %s", oid);
     snmp_perror(oid);
     return 1;
   }
@@ -810,17 +810,17 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
         /* error in response */
         running = 0;
         if (response->errstat != SNMP_ERR_NOSUCHNAME) {
-          fprintf(stderr, "Error in packet.\n");
+          warning("Error in snmp packet.");
           exitval = 2;
         } else
           debug(2, "snmpwalk successfully done");
       }
     } else if (status == STAT_TIMEOUT) {
-      fprintf(stderr, "Timeout\n");
+      warning("snmp timeout");
       running = 0;
       exitval = 2;
     } else {    /* status == STAT_ERROR */
-      fprintf(stderr, "SNMP Error\n");
+      warning("SNMP Error");
       snmp_sess_perror("flowd", ss);
       running = 0;
       exitval = 2;
@@ -856,11 +856,11 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
   struct router_t *prouter;
 
   if (router->addr==(u_long)-1)
-  { printf("Warning: Router not specified for %s\n", oid2str(oid));
+  { warning("Router not specified for %s", oid2str(oid));
     return (unsigned short)-2; /* not matched for any interface */
   }
   if ((p=strchr(*s, '=')) == NULL)
-  { printf("Internal error\n");
+  { error("Internal error");
     exit(2);
   }
   *s = p+1;
@@ -909,7 +909,7 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
     if (i>0) right=mid;
     else left=mid+1;
   }
-  printf("Warning: %s %s not found at %s\n", oid2str(oid), val,
+  warning("%s %s not found at %s", oid2str(oid), val,
          inet_ntoa(*(struct in_addr *)&(router->addr)));
   return (unsigned short)-2;
 }

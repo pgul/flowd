@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <time.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -43,13 +43,18 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   src_ip = ntohl(srcip);
   dst_ip = ntohl(dstip);
   flowsrc = ntohl(src);
+  sigemptyset(&set);
+  sigaddset(&set, SIGINFO);
+  sigaddset(&set, SIGUSR1);
+  sigaddset(&set, SIGUSR2);
+  sigaddset(&set, SIGHUP);
+  sigaddset(&set, SIGINT);
+  sigaddset(&set, SIGTERM);
+  sigprocmask(SIG_BLOCK, &set, &oset);
 #if NBITS>0
   src_class=find_mask(src_ip);
   dst_class=find_mask(dst_ip);
 #endif
-  sigemptyset(&set);
-  sigaddset(&set, SIGINFO);
-  sigprocmask(SIG_BLOCK, &set, &oset);
   for (pa=attrhead; pa; pa=pa->next)
   { if (in)
     { local=dst_ip;
@@ -89,13 +94,13 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
     {
       if (!pa->link && !pa->fallthru)
         break; // ignore
-  if (fsnap && !pa->fallthru)
+  if (fsnap /*&& !pa->fallthru*/)
   { 
       fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
 #if NBITS>0
 	      ".%s2%s"
 #endif
-	      ".%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
+	      ".%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
         (in ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
@@ -106,9 +111,10 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output,
-        *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3]);
+        *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3],
+	pa->fallthru ? " (fallthru)" : "");
     fflush(fsnap);
-    if ((snap_traf-=len) <= 0)
+    if (!pa->fallthru && (snap_traf-=len) <= 0)
     { fclose(fsnap);
       fsnap = NULL;
       snap_traf=0;
@@ -161,9 +167,9 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
 
 static void mysql_err(MYSQL *conn, char *message)
 {
-	fprintf(stderr, "%s\n", message);
+	error("%s", message);
 	if (conn)
-		fprintf(stderr, "Error %u (%s)\n",
+		error("Error %u (%s)",
 		        mysql_errno(conn), mysql_error(conn));
 }
 
@@ -431,7 +437,7 @@ void write_stat(void)
                 }
               }
               if (conn && !pl->user_id)
-              { fprintf(stderr, "internal error working with MySQL server\n");
+              { error("internal error working with MySQL server");
                 do_disconnect(conn);
                 conn=NULL;
               }

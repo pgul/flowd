@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <syslog.h>
+#include <stdarg.h>
 #include "flowd.h"
 
 #ifndef SIGINFO
@@ -68,7 +70,7 @@ void hup(int signo)
 #endif
   if (signo==SIGUSR2)
     if (config(confname))
-    { fprintf(stderr, "Config error!\n");
+    { error("Config error, exiting!");
       exit(1);
     }
   if (signo==SIGINFO)
@@ -203,6 +205,7 @@ int main(int argc, char *argv[])
   { fprintf(f, "%u\n", (unsigned)getpid());
     fclose(f);
   }
+  openlog("flowd", LOG_PID, LOG_DAEMON);
 
   while ((i=sizeof(remote_addr),
           memset(&remote_addr, 0, sizeof(remote_addr)),
@@ -213,7 +216,7 @@ int main(int argc, char *argv[])
     if (ver==1)
     {
       if (n<sizeof(struct head1))
-      { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head1));
+      { warning("Error: received %d bytes, needed %d", n, sizeof(*head1));
         continue;
       }
       head1 = (struct head1 *)buf;
@@ -223,7 +226,7 @@ int main(int argc, char *argv[])
              ntohl(head1->seq));
 #endif
       if (n!=sizeof(*head1)+ntohs(head1->count)*sizeof(*data1))
-      { printf("Error: received %d bytes, needed %d\n", n,
+      { warning("Error: received %d bytes, needed %d", n,
                sizeof(*head1)+ntohs(head1->count)*sizeof(*data1));
         continue;
       }
@@ -248,7 +251,7 @@ int main(int argc, char *argv[])
     else if (ver==5)
     {
       if (n<sizeof(struct head5))
-      { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head5));
+      { warning("Error: received %d bytes, needed %d", n, sizeof(*head5));
         continue;
       }
       head5 = (struct head5 *)buf;
@@ -258,7 +261,7 @@ int main(int argc, char *argv[])
              ntohl(head5->seq));
 #endif
       if (n!=sizeof(*head5)+ntohs(head5->count)*sizeof(*data5))
-      { printf("Error: received %d bytes, needed %d\n", n,
+      { warning("Error: received %d bytes, needed %d", n,
                sizeof(*head5)+ntohs(head5->count)*sizeof(*data5));
         continue;
       }
@@ -289,7 +292,7 @@ int main(int argc, char *argv[])
       }
     }
     else
-    { printf("Error: unknown netflow version %d ignored\n", ver);
+    { warning("Error: unknown netflow version %d ignored", ver);
       continue;
     }
     if (last_write+write_interval<=time(NULL))
@@ -302,5 +305,31 @@ int main(int argc, char *argv[])
   unlink(pidfile);
   close(sockfd);
   return 0;
+}
+
+void warning(char *format, ...)
+{
+  va_list ap;
+
+  va_start(ap, format);
+  vsyslog(LOG_WARNING, format, ap);
+  va_end(ap);
+  va_start(ap, format);
+  vfprintf(stderr, format, ap);
+  fprintf(stderr, "\n");
+  va_end(ap);
+}
+
+void error(char *format, ...)
+{
+  va_list ap;
+
+  va_start(ap, format);
+  vsyslog(LOG_ERR, format, ap);
+  va_end(ap);
+  va_start(ap, format);
+  vfprintf(stderr, format, ap);
+  fprintf(stderr, "\n");
+  va_end(ap);
 }
 

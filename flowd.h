@@ -78,6 +78,8 @@ void add_stat(u_long flowsrc, u_long srcaddr, u_long dstaddr, int in,
 void write_stat(void);
 int  config(char *name);
 void debug(int level, char *format, ...);
+void warning(char *format, ...);
+void error(char *format, ...);
 #if NBITS>0
 int  find_mask(unsigned long addr);
 int  reload_acl(void);

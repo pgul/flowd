@@ -26,12 +26,12 @@ static int reload_one_acl(char **acl, char *acl_name)
   last_reload=time(NULL);
   facl=fopen(acl_name, "r");
   if (facl==NULL)
-  { printf("Can't open %s: %s!\n", acl_name, strerror(errno));
+  { warning("Can't open %s: %s!", acl_name, strerror(errno));
     return -1;
   }
   newacl = calloc(1<<(24-3), 1);
   if (!newacl)
-  { printf("Not enough core!\n");
+  { error("Not enough core!");
     return -1;
   }
   while (fgets(str, sizeof(str), facl))

@@ -59,14 +59,14 @@ int PerlStart(char *perlfile)
     strncpy(errstr, strerror(errno), sizeof(errstr));
 #endif
     errstr[sizeof(errstr)-1]='\0';
-    printf("Can't read %s: %s\n", perlfile, errstr);
+    warning("Can't read %s: %s", perlfile, errstr);
     return 1;
   }
   perl = perl_alloc();
   perl_construct(perl);
   rc=perl_parse(perl, xs_init, 2, perlargs, NULL);
   if (rc)
-  { printf("Can't parse %s", perlfile);
+  { warning("Can't parse %s", perlfile);
     perl_destruct(perl);
     perl_free(perl);
     perl=NULL;
@@ -80,6 +80,7 @@ void plstart(void)
 {
   STRLEN n_a;
 
+  if (perl==NULL) return;
   dSP;
   ENTER;
   SAVETMPS;
@@ -91,16 +92,14 @@ void plstart(void)
   FREETMPS;
   LEAVE;
   if (SvTRUE(ERRSV))
-  {
-    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
-    exit(4);
-  }
+    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
 }
 
 void plstop(void)
 {
   STRLEN n_a;
 
+  if (perl==NULL) return;
   dSP;
   ENTER;
   SAVETMPS;
@@ -112,10 +111,7 @@ void plstop(void)
   FREETMPS;
   LEAVE;
   if (SvTRUE(ERRSV))
-  {
-    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
-    exit(4);
-  }
+    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
 }
 
 #if NBITS>0
@@ -130,6 +126,7 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
   SV *svuser;
   STRLEN n_a;
 
+  if (perl==NULL) return;
   dSP;
   svuser     = perl_get_sv("user",      TRUE);
 #if NBITS>0
@@ -158,10 +155,7 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
   FREETMPS;
   LEAVE;
   if (SvTRUE(ERRSV))
-  {
-    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
-    exit(4);
-  }
+    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
 }
 
 void perl_call(char *file, const char *func, char **args)
@@ -186,9 +180,6 @@ void perl_call(char *file, const char *func, char **args)
   FREETMPS;
   LEAVE;
   if (SvTRUE(ERRSV))
-  {
-    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
-    exit(4);
-  }
+    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
   exitperl();
 }
