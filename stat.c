@@ -77,8 +77,8 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
       snap_traf=0;
     }
   }
-  src_ua=uaindex[src_ip];
-  dst_ua=uaindex[dst_ip];
+  src_ua=uaindex[src_class];
+  dst_ua=uaindex[dst_class];
   if ((pa->link->bytes[in^pa->reverse][src_ua][dst_ua]+=len)>=0xf0000000lu)
     write_stat();
   if (!pa->fallthru)

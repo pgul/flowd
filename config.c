@@ -126,21 +126,22 @@ int config(char *name)
       i=0;
       while (p && *p)
       { 
-        if (++i==NCLASSES)
+        if (i==NCLASSES)
         { fprintf(stderr, "Too many classes!\n");
           break;
         }
-        for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p++);
+        for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p1++);
         if (*p1) *p1++='\0';
         for (j=0; j<i; j++)
           if (strcmp(uaname[i], uaname[j]) == 0)
             break;
-        uaindex[i++]=j;
+        uaindex[i]=j;
         if (j<i)
           uaname[i][0]='\0';
         else
           strncpy(uaname[i], p, sizeof(uaname[i])-1);
         for (p=p1; *p && (isspace(*p) || *p==','); p++);
+        i++;
       }
       continue;
     }
