@@ -521,7 +521,7 @@ static int snmpwalk(struct router_t *router)
             data[nifaces++].ifindex=(unsigned short)vars->name_loc[vars->name_length-1];
           }
           debug(6, "ifindex %u val '%s'", data[nifaces-1].ifindex, data[nifaces-1].val);
-          varslen += strlen(data[nifaces].val)+1;
+          varslen += strlen(data[nifaces-1].val)+1;
           if ((vars->type != SNMP_ENDOFMIBVIEW) &&
               (vars->type != SNMP_NOSUCHOBJECT) &&
               (vars->type != SNMP_NOSUCHINSTANCE)) {
