@@ -412,73 +412,12 @@ static int parse_line(char *str)
   return 0;
 }
 
-int config(char *name)
+static int parse_file(FILE *f)
 {
-  FILE *f, *finc;
+  FILE *finc;
   char str[256];
   char *p, *p1;
-  int i;
 
-#ifdef DO_PERL
-  exitperl();
-#endif
-  if (fromshmem) freeshmem();
-  fromshmem=0;
-  mapkey=MAPKEY;
-#ifdef DO_PERL
-  strcpy(perlfile,     "flowd.pl");
-  strcpy(perlstart,    "startwrite");
-  strcpy(perlwrite,    "write"     );
-  strcpy(perlstop,     "stopwrite" );
-#endif
-#ifdef DO_MYSQL
-  mysql_user[0] = mysql_pwd[0] = mysql_host[0] = mysql_socket[0] = '\0';
-  strcpy(mysql_db,     "flowd");
-  strcpy(mysql_table,  "traffic_%Y_%m");
-  strcpy(mysql_utable, "users");
-  mysql_port=0;
-  mysql_start();
-#endif
-  f=fopen(name, "r");
-  if (f==NULL)
-  { fprintf(stderr, "Can't open %s: %s!\n", name, strerror(errno));
-    return -1;
-  }
-  /* free links and attrs */
-  if (linkhead)
-  { for (pl=linkhead->next; pl; pl=pl->next)
-    { free(linkhead);
-      linkhead=pl;
-    }
-    free(linkhead);
-    linkhead=NULL;
-  }
-  if (attrhead)
-  { for (pa=attrhead->next; pa; pa=pa->next)
-    { free(attrhead);
-      attrhead=pa;
-    }
-    free(attrhead);
-    attrhead=NULL;
-  }
-  attrtail=NULL;
-  for (i=0; i<NCLASSES; i++)
-  { uaindex[i]=i;
-    snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
-  }
-  cur_router.addr=(u_long)-1;
-#ifdef DO_SNMP
-  { struct router_t *prouter;
-    for (prouter=routers; prouter; prouter=prouter->next)
-    { for (i=0; i<NUM_OIDS; i++)
-	if (prouter->data[i])
-	{ free(prouter->data[i]);
-	  prouter->data[i] = NULL;
-	  prouter->nifaces[i] = 0;
-	}
-    }
-  }
-#endif
   while (fgets(str, sizeof(str), f))
   {
     if (strncasecmp(str, "@include", 8) == 0 && isspace(str[8]))
@@ -500,8 +439,7 @@ int config(char *name)
         fprintf(stderr, "Can't open %s: %s, include ignored\n", p, strerror(errno));
 	continue;
       }
-      while (fgets(str, sizeof(str), finc))
-        parse_line(str);
+      parse_file(finc);
       fclose(finc);
       continue;
     }
@@ -509,7 +447,7 @@ int config(char *name)
     if (strncasecmp(str, "@perl_include", 13) == 0 && isspace(str[13]))
     {
       char perlincfile[256], perlincfunc[256], *perlincargs[64];
-      int h[2], pid;
+      int i, h[2], pid;
 
       for (p=str+14; *p && isspace(*p); p++);
       p1=strstr(p, "::");
@@ -602,14 +540,84 @@ int config(char *name)
       }
       close(h[1]);
       finc=fdopen(h[0], "r");
-      while (fgets(str, sizeof(str), finc))
-        parse_line(str);
+      parse_file(finc);
       waitpid(pid, NULL, 0);
       fclose(finc);
       continue;
     }
 #endif
+
+    parse_line(str);
+  } 
+  return 0;
+}
+
+int config(char *name)
+{
+  FILE *f;
+  int i;
+
+#ifdef DO_PERL
+  exitperl();
+#endif
+  if (fromshmem) freeshmem();
+  fromshmem=0;
+  mapkey=MAPKEY;
+#ifdef DO_PERL
+  strcpy(perlfile,     "flowd.pl");
+  strcpy(perlstart,    "startwrite");
+  strcpy(perlwrite,    "write"     );
+  strcpy(perlstop,     "stopwrite" );
+#endif
+#ifdef DO_MYSQL
+  mysql_user[0] = mysql_pwd[0] = mysql_host[0] = mysql_socket[0] = '\0';
+  strcpy(mysql_db,     "flowd");
+  strcpy(mysql_table,  "traffic_%Y_%m");
+  strcpy(mysql_utable, "users");
+  mysql_port=0;
+  mysql_start();
+#endif
+  f=fopen(name, "r");
+  if (f==NULL)
+  { fprintf(stderr, "Can't open %s: %s!\n", name, strerror(errno));
+    return -1;
   }
+  /* free links and attrs */
+  if (linkhead)
+  { for (pl=linkhead->next; pl; pl=pl->next)
+    { free(linkhead);
+      linkhead=pl;
+    }
+    free(linkhead);
+    linkhead=NULL;
+  }
+  if (attrhead)
+  { for (pa=attrhead->next; pa; pa=pa->next)
+    { free(attrhead);
+      attrhead=pa;
+    }
+    free(attrhead);
+    attrhead=NULL;
+  }
+  attrtail=NULL;
+  for (i=0; i<NCLASSES; i++)
+  { uaindex[i]=i;
+    snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
+  }
+  cur_router.addr=(u_long)-1;
+#ifdef DO_SNMP
+  { struct router_t *prouter;
+    for (prouter=routers; prouter; prouter=prouter->next)
+    { for (i=0; i<NUM_OIDS; i++)
+	if (prouter->data[i])
+	{ free(prouter->data[i]);
+	  prouter->data[i] = NULL;
+	  prouter->nifaces[i] = 0;
+	}
+    }
+  }
+#endif
+  parse_file(f);
   fclose(f);
   if (fromshmem)
   { if (init_map())
