@@ -481,7 +481,7 @@ int config(char *name)
   if (access(aclname, R_OK))
     fromacl=1;
   else if (fromacl)
-  { fprintf(stderr, "Can't read acl %d!\n", aclname);
+  { fprintf(stderr, "Can't read acl %s!\n", aclname);
     return 1;
   } else
     uaname[0][0]='\0';

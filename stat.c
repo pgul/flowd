@@ -265,6 +265,16 @@ static void plwrite(char *user, char *src, char *dst, char *direct, int bytes)
               INDEX (user_id),                       \
               INDEX (time)                           \
         )"
+#define create_table_noclasses                       \
+       "CREATE TABLE IF NOT EXISTS %s (              \
+              time TIMESTAMP NOT NULL,               \
+              user_id INT UNSIGNED NOT NULL,         \
+              %s%s                                   \
+              bytes INT UNSIGNED NOT NULL,           \
+              INDEX (user_id),                       \
+              INDEX (time)                           \
+        )"
+
 static void mysql_err(MYSQL *conn, char *message)
 {
 	fprintf(stderr, "%s\n", message);
@@ -448,7 +458,9 @@ void write_stat(void)
             }
             if (conn && !table_created)
             {
-              snprintf(query, sizeof(query)-1, create_table, table, enums, enums);
+              snprintf(query, sizeof(query)-1,
+                 (fromshmem || fromacl) ? create_table : create_table_noclasses,
+                 table, enums, enums);
               if (mysql_query(conn, query) != 0)
               { mysql_err(conn, "mysql_query() failed");
                 do_disconnect(conn);
