@@ -157,7 +157,7 @@ case x$withval in
         CFLAGS="$CFLAGS -I /usr/local/include"
         AC_TRY_COMPILE([#include <sys/types.h>
                         #include <net-snmp/net-snmp-config.h>
-                        #include <net-snmp-includes.h>], [],
+                        #include <net-snmp/net-snmp-includes.h>], [],
                         AC_MSG_RESULT(yes); snmp_ok=yes,
                         AC_MSG_RESULT(no); snmp_ok=no)
         case x$snmp_ok in
