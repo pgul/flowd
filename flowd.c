@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
     if (ver==1)
     {
       if (n<sizeof(struct head1))
-      { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head5));
+      { printf("Error: received %d bytes, needed %d\n", n, sizeof(*head1));
         continue;
       }
       head1 = (struct head1 *)buf;
