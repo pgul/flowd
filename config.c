@@ -188,6 +188,8 @@ int config(char *name)
         pa->as=atoi(p+3);
       else if (strncmp(p, "ifindex=", 8)==0)
         pa->iface=atoi(p+8);
+      else if (strncmp(p, "class=", 6)==0)
+        pa->class=atoi(p+6);
       else if (strncmp(p, "nexthop=", 8)==0)
         pa->nexthop=inet_addr(p+8);
       else if (strncmp(p, "ip=", 3)==0)
