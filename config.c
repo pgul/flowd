@@ -137,7 +137,11 @@ int config(char *name)
 #ifdef DO_SNMP
   { struct router_t *prouter;
     for (prouter=routers; prouter; prouter=prouter->next)
-    { prouter->needupdate=1;
+    { for (i=0; i<NUM_OIDS; i++)
+	if (prouter->data[i])
+	{ free(prouter->data[i]);
+	  prouter->data[i] = NULL;
+	}
     }
   }
 #endif
@@ -405,7 +409,6 @@ static char *oid2str(enum ifoid_t oid)
     case IFDESCR: return "ifDescr";
     case IFALIAS: return "ifAlias";
     case IFIP:    return "ifIP";
-    case IFUNDEF: return "undef";
   }
   return "";
 }
@@ -417,7 +420,6 @@ static char *oid2oid(enum ifoid_t oid)
     case IFDESCR: return "ifDescr";
     case IFALIAS: return "ifAlias";
     case IFIP:    return "ipAdEntIfIndex";
-    case IFUNDEF: return "undef";
   }
   return "";
 }
@@ -427,7 +429,7 @@ static int comp(const void *a, const void *b)
   return strcmp(((struct routerdata *)a)->val, ((struct routerdata *)b)->val);
 }
 
-static int snmpwalk(struct router_t *router)
+static int snmpwalk(struct router_t *router, enum ifoid_t noid)
 {
   struct snmp_session  session, *ss;
   struct snmp_pdu *pdu, *response;
@@ -446,7 +448,7 @@ static int snmpwalk(struct router_t *router)
   snmp_sess_init(&session);
   init_snmp("snmpapp");
   rootlen=MAX_OID_LEN;
-  oid=oid2oid(router->oid);
+  oid=oid2oid(noid);
   if (snmp_parse_oid(oid, root, &rootlen)==NULL)
   { fprintf(stderr, "Can't parse oid %s\n", oid);
     snmp_perror(oid);
@@ -490,7 +492,7 @@ static int snmpwalk(struct router_t *router)
           }
           if (nifaces%16==0)
             data=realloc(data, (nifaces+16)*sizeof(data[0]));
-          if (router->oid==IFIP)
+          if (noid==IFIP)
           { sprintf(data[nifaces].val, "%lu.%lu.%lu.%lu",
                     vars->name_loc[vars->name_length-4],
                     vars->name_loc[vars->name_length-3],
@@ -546,19 +548,19 @@ static int snmpwalk(struct router_t *router)
     return exitval;
   }
   /* ok, copy data to router structure */
-  if (router->data) free(router->data);
-  router->data = malloc(sizeof(router->data[0])*nifaces+varslen);
-  curvar=((char *)router->data)+sizeof(router->data[0])*nifaces;
+  if (router->data[noid]) free(router->data[noid]);
+  router->data[noid] = malloc(sizeof(router->data[0][0])*nifaces+varslen);
+  curvar=((char *)router->data[noid])+sizeof(router->data[0][0])*nifaces;
   router->nifaces=nifaces;
   for (nifaces=0; nifaces<router->nifaces; nifaces++)
-  { router->data[nifaces].ifindex=data[nifaces].ifindex;
-    router->data[nifaces].val=curvar;
+  { router->data[noid][nifaces].ifindex=data[nifaces].ifindex;
+    router->data[noid][nifaces].val=curvar;
     strcpy(curvar, data[nifaces].val);
     curvar+=strlen(curvar)+1;
   }
   if (data) free(data);
   /* data copied, sort it */
-  qsort(router->data, nifaces, sizeof(router->data[0]), comp);
+  qsort(router->data[noid], nifaces, sizeof(router->data[0][0]), comp);
   return 0;
 }
 
@@ -575,25 +577,21 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
   }
   /* search this router/oid */
   for (prouter=routers; prouter; prouter=prouter->next)
-  { if (prouter->addr==router->addr && prouter->oid==oid)
+  { if (prouter->addr==router->addr)
       break;
   }
   if (prouter==NULL)
   { prouter=malloc(sizeof(*prouter));
     memset(prouter, 0, sizeof(*prouter));
     prouter->addr=router->addr;
-    prouter->oid=oid;
     prouter->next=routers;
     routers=prouter;
-    prouter->needupdate=1;
     strncpy(prouter->community, router->community, sizeof(router->community)-1);
   }
   router=prouter;
-  if (router->needupdate)
-  { /* do snmpwalk for the oid */
-    snmpwalk(router);
-    router->needupdate=0;
-  }
+  if (router->data[oid] == NULL)
+    /* do snmpwalk for the oid */
+    snmpwalk(router, oid);
   /* copy value to val string */
   if (*s == '\"')
   { strncpy(val, s+1, sizeof(val));
@@ -610,11 +608,12 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
   left=0; right=router->nifaces;
   while (left<right)
   { mid=(left+right)/2;
-    if ((i=strcmp(router->data[mid].val, val))==0)
+    if ((i=strcmp(router->data[oid][mid].val, val))==0)
     {
       debug(4, "ifindex for %s=%s at %s is %d", oid2str(oid), val, 
-        inet_ntoa(*(struct in_addr *)&router->addr), router->data[mid].ifindex);
-      return router->data[mid].ifindex;
+        inet_ntoa(*(struct in_addr *)&router->addr),
+	router->data[oid][mid].ifindex);
+      return router->data[oid][mid].ifindex;
     }
     if (i>0) right=mid;
     else left=mid+1;

@@ -52,18 +52,18 @@ struct attrtype {
 
 extern struct attrtype *attrhead;
 
+enum ifoid_t { IFNAME, IFDESCR, IFALIAS, IFIP };
+#define NUM_OIDS (IFIP+1)
 
 struct router_t {
     u_long addr;
-#ifdef HAVE_UCD_SNMP_SNMP_H
+#ifdef DO_SNMP
     char community[256];
-    enum ifoid_t { IFUNDEF, IFNAME, IFDESCR, IFALIAS, IFIP } oid;
     int  nifaces;
     struct routerdata {
       unsigned short ifindex;
       char *val;
-    } *data;
-    int needupdate;
+    } *data[NUM_OIDS];
     struct router_t *next;
 #endif
 };
@@ -90,12 +90,14 @@ classtype getclass(unsigned long addr);
 int  init_map(void);
 void freeshmem(void);
 void debug(int level, char *format, ...);
+
 #ifdef DO_PERL
 void exitperl(void);
 int  PerlStart(void);
 
 extern char perlfile[], perlstart[], perlwrite[], perlstop[];
 #endif
+
 #ifdef DO_MYSQL
 extern char mysql_user[256], mysql_pwd[256], mysql_host[256];
 extern char mysql_socket[256], mysql_db[256];
@@ -105,7 +107,8 @@ extern unsigned mysql_port;
 
 void mysql_start(void);
 #endif 
-#ifdef HAVE_UCD_SNMP_SNMP_H
+
+#ifdef DO_SNMP
 unsigned short get_ifindex(struct router_t*, enum ifoid_t, const char*);
 #endif
 
