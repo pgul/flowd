@@ -51,23 +51,6 @@ struct attrtype {
 };
 
 extern struct attrtype *attrhead;
-
-enum ifoid_t { IFNAME, IFDESCR, IFALIAS, IFIP };
-#define NUM_OIDS (IFIP+1)
-
-struct router_t {
-    u_long addr;
-#ifdef DO_SNMP
-    char community[256];
-    int  nifaces;
-    struct routerdata {
-      unsigned short ifindex;
-      char *val;
-    } *data[NUM_OIDS];
-    struct router_t *next;
-#endif
-};
-
 extern time_t last_write, last_reload;
 extern struct linktype *linkhead;
 extern char logname[], snapfile[], aclname[], pidfile[];
@@ -107,8 +90,4 @@ extern unsigned mysql_port;
 
 void mysql_start(void);
 #endif 
-
-#ifdef DO_SNMP
-unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
-#endif
 

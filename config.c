@@ -33,7 +33,25 @@ char mysql_table[256], mysql_utable[256];
 unsigned mysql_port;
 #endif
 #ifdef DO_SNMP
+enum ifoid_t { IFNAME, IFDESCR, IFALIAS, IFIP };
+#define NUM_OIDS (IFIP+1)
+#endif
+struct router_t {
+    u_long addr;
+#ifdef DO_SNMP
+    char community[256];
+    int  nifaces[NUM_OIDS];
+    struct routerdata {
+      unsigned short ifindex;
+      char *val;
+    } *data[NUM_OIDS];
+    struct router_t *next;
+#endif
+};
 static struct router_t *routers;
+
+#ifdef DO_SNMP
+static unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
 #endif
 
 void debug(int level, char *format, ...)
@@ -146,6 +164,7 @@ int config(char *name)
 	if (prouter->data[i])
 	{ free(prouter->data[i]);
 	  prouter->data[i] = NULL;
+	  prouter->nifaces[i] = 0;
 	}
     }
   }
@@ -563,8 +582,8 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   if (router->data[noid]) free(router->data[noid]);
   router->data[noid] = malloc(sizeof(router->data[0][0])*nifaces+varslen);
   curvar=((char *)router->data[noid])+sizeof(router->data[0][0])*nifaces;
-  router->nifaces=nifaces;
-  for (nifaces=0; nifaces<router->nifaces; nifaces++)
+  router->nifaces[noid]=nifaces;
+  for (nifaces=0; nifaces<router->nifaces[noid]; nifaces++)
   { router->data[noid][nifaces].ifindex=data[nifaces].ifindex;
     router->data[noid][nifaces].val=curvar;
     strcpy(curvar, data[nifaces].val);
@@ -576,7 +595,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   return 0;
 }
 
-unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
+static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
 {
   int left, right, mid, i;
   char val[256], *p;
@@ -623,7 +642,7 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
     *p='\0';
   }
   /* find ifindex for given val */
-  left=0; right=router->nifaces;
+  left=0; right=router->nifaces[oid];
   while (left<right)
   { mid=(left+right)/2;
     if ((i=strcmp(router->data[oid][mid].val, val))==0)
