@@ -62,6 +62,8 @@ struct router_t {
       unsigned short ifindex;
       char *val;
     } *data;
+    int needupdate;
+    struct router_t *next;
 #endif
 };
 
@@ -86,6 +88,7 @@ int  config(char *name);
 classtype getclass(unsigned long addr);
 int  init_map(void);
 void freeshmem(void);
+void debug(char *format, ...);
 #ifdef DO_PERL
 void exitperl(void);
 int  PerlStart(void);

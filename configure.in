@@ -218,7 +218,7 @@ AC_DEFINE_UNQUOTED(LOGDIR, "$logdir")
 
 AC_ARG_WITH(debug,
      [  --with-debug            generate debug info],
-     [CFLAGS="$CFLAGS -g"], [CFLAGS="$CFLAGS -O3"])
+     [AC_DEFINE(DEBUG) CFLAGS="$CFLAGS -g"], [CFLAGS="$CFLAGS -O3"])
 
 dnl Set shmem params
 nbits=2

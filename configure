@@ -1548,7 +1548,10 @@ EOF
 # Check whether --with-debug or --without-debug was given.
 if test "${with_debug+set}" = set; then
   withval="$with_debug"
-  CFLAGS="$CFLAGS -g"
+  cat >> confdefs.h <<\EOF
+#define DEBUG 1
+EOF
+ CFLAGS="$CFLAGS -g"
 else
   CFLAGS="$CFLAGS -O3"
 fi

@@ -94,7 +94,7 @@ int find_mask(unsigned long remote)
   return 0;
 }
 
-#ifdef DEBUG
+#ifdef MAKETEST
 time_t last_reload;
 char *uaname[NCLASS][32]={"world","ua"};
 int main(int argc, char *argv[])
