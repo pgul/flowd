@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -24,9 +25,6 @@ long mapkey;
 int  fromshmem, fromacl;
 char uaname[NCLASSES][32];
 int  uaindex[NCLASSES];
-#ifdef DO_PERL
-char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
-#endif
 #ifdef DO_MYSQL
 char mysql_user[256], mysql_pwd[256], mysql_host[256];
 char mysql_socket[256], mysql_db[256];
@@ -49,9 +47,13 @@ struct router_t {
     struct router_t *next;
 #endif
 };
-static struct router_t *routers;
+static struct linktype *pl;
+static struct attrtype *pa, *attrtail;
+static struct router_t cur_router;
 
 #ifdef DO_SNMP
+static struct router_t *routers;
+
 static unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
 #endif
 
@@ -163,17 +165,263 @@ static void read_proto(char *p, u_short *proto)
   }
 }
 
-int config(char *name)
+static int parse_line(char *str)
 {
-  FILE *f;
-  struct linktype *pl;
-  struct attrtype *pa, *attrtail;
-  char str[256];
   char *p, *p1;
   int i, j;
   struct hostent *he;
-  struct router_t cur_router;
 
+  p=strchr(str, '\n');
+  if (p) *p='\0';
+  p=strchr(str, '#');
+  if (p) *p='\0';
+  for (p=str; isspace(*p); p++);
+  if (*p=='\0') return 0;
+  if (p!=str) strcpy(str, p);
+  if (str[0]=='\0') return 0;
+  for (p=str+strlen(str)-1; isspace(*p); *p--='\0');
+  // for (p=str; *p; p++) *p=tolower(*p);
+  p=str;
+  if (strncasecmp(p, "log=", 4)==0)
+  { strncpy(logname, p+4, sizeof(logname)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "snap=", 5)==0)
+  { strncpy(snapfile, p+5, sizeof(snapfile)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "acl=", 4)==0)
+  { strncpy(aclname, p+4, sizeof(aclname)-1);
+    fromacl=1;
+    return 0;
+  }
+  if (strncasecmp(p, "pid=", 4)==0)
+  { strncpy(pidfile, p+4, sizeof(pidfile)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "write-int=", 10)==0)
+  { write_interval = atoi(p+10);
+    if (write_interval == 0) write_interval=WRITE_INTERVAL;
+    return 0;
+  }
+  if (strncasecmp(p, "reload-int=", 11)==0)
+  { reload_interval = atoi(p+11);
+    if (reload_interval == 0) reload_interval=RELOAD_INTERVAL;
+    return 0;
+  }
+  if (strncasecmp(p, "bindaddr=", 9)==0)
+  { bindaddr=inet_addr(p+9);
+    return 0;
+  }
+  if (strncasecmp(p, "port=", 5)==0)
+  { port=atoi(p+5);
+    return 0;
+  }
+  if (strncasecmp(p, "mapkey=", 7)==0)
+  { mapkey = atol(p+7);
+    if (mapkey == 0) mapkey=MAPKEY;
+    fromshmem=1;
+    return 0;
+  }
+  if (strncasecmp(p, "fromshmem=", 10)==0)
+  { if (p[10]=='n' || p[10]=='N' || p[10]=='0' || p[10]=='f' || p[10]=='F')
+      fromshmem=0;
+    else
+      fromshmem=1;
+    return 0;
+  }
+  if (strncasecmp(p, "classes=", 8)==0)
+  {
+    p+=8;
+    i=0;
+    while (p && *p)
+    { 
+      if (i==NCLASSES)
+      { fprintf(stderr, "Too many classes!\n");
+        break;
+      }
+      for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p1++);
+      if (*p1) *p1++='\0';
+      for (j=0; j<i; j++)
+        if (strcmp(p, uaname[j]) == 0)
+          break;
+      uaindex[i]=j;
+      if (j<i)
+        uaname[i][0]='\0';
+      else
+        strncpy(uaname[i], p, sizeof(uaname[i])-1);
+      for (p=p1; *p && (isspace(*p) || *p==','); p++);
+      i++;
+    }
+    return 0;
+  }
+#ifdef DO_PERL
+  if (strncasecmp(p, "perlwrite=", 10)==0)
+  { char *p1 = p+10;
+    p=strstr(p1, "::");
+    if (p==NULL)
+    { fprintf(stderr, "Incorrect perlwrite=%s ignored!", p1);
+      return 0;
+    }
+    *p=0;
+    strncpy(perlfile, p1, sizeof(perlfile));
+    strncpy(perlwrite, p+2, sizeof(perlwrite));
+    return 0;
+  }
+#endif
+#ifdef DO_MYSQL
+  if (strncasecmp(p, "mysql_user=", 11)==0)
+  { strncpy(mysql_user, p+11, sizeof(mysql_user)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "mysql_host=", 11)==0)
+  { strncpy(mysql_host, p+11, sizeof(mysql_host)-1);
+    p=strchr(mysql_host, ':');
+    if (p)
+    { mysql_port=atoi(p+1);
+      *p=0;
+    }
+    return 0;
+  }
+  if (strncasecmp(p, "mysql_pwd=", 10)==0)
+  { strncpy(mysql_pwd, p+10, sizeof(mysql_pwd)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "mysql_db=", 9)==0)
+  { strncpy(mysql_db, p+9, sizeof(mysql_db)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "mysql_socket=", 13)==0)
+  { strncpy(mysql_socket, p+13, sizeof(mysql_socket)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "mysql_table=", 12)==0)
+  { strncpy(mysql_table, p+12, sizeof(mysql_table)-1);
+    return 0;
+  }
+  if (strncasecmp(p, "mysql_utable=", 13)==0)
+  { strncpy(mysql_utable, p+13, sizeof(mysql_utable)-1);
+    return 0;
+  }
+#endif
+  if (strncasecmp(p, "router=", 7)==0)
+  {
+    p+=7;
+    freerouter(&cur_router);
+#ifdef DO_SNMP
+    if ((p1=strchr(p, '@'))!=NULL)
+    { *p1++='\0';
+      strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
+      p=p1;
+    } else
+      strcpy(cur_router.community, "public");
+#endif
+    /* get router address */
+    if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
+    { if (strcmp(p, "any")==0)
+        cur_router.addr=(u_long)-1;
+      else
+        fprintf(stderr, "Warning: Router %s not found\n", p);
+      return 0;
+    }
+    /* use only first address */
+    memcpy(&cur_router.addr, he->h_addr_list[0], he->h_length);
+    return 0;
+  }
+  for (p=str; *p && !isspace(*p); p++);
+  if (*p) *p++='\0';
+  if (strchr(str, '=')) return 0; /* keyword */
+  /* find link name */
+  for (pl=linkhead; pl; pl=pl->next)
+  { if (strcmp(pl->name, str)==0)
+      break;
+  }
+  if (!pl && strcasecmp(str, "ignore"))
+  { pl=calloc(1, sizeof(*pl));
+    pl->next=linkhead;
+    strcpy(pl->name, str);
+    linkhead=pl;
+  }
+  /* create attribute structure */
+  pa = calloc(1, sizeof(*pa));
+  memset(pa, 0xff, sizeof(*pa));
+  pa->link = pl;
+  pa->next = NULL;
+  pa->reverse=pa->fallthru=0;
+  if (cur_router.addr!=(u_long)-1)
+    pa->src=ntohl(cur_router.addr);	/* mask /32 */
+  else
+    pa->src=pa->srcmask=0;		/* match any */
+  pa->not=0;
+  if (attrhead==NULL)
+    attrhead = pa;
+  else
+    attrtail->next = pa;
+  attrtail = pa;
+  /* fill attribute structure */
+  while (*p)
+  { while (*p && isspace(*p)) p++;
+    if (!*p) break;
+    if (strncasecmp(p, "reverse", 7)==0)
+    { pa->reverse=1;
+    }
+    else if (strncasecmp(p, "fallthru", 8)==0)
+      pa->fallthru=1;
+    else if (strncasecmp(p, "in", 2)==0)
+      pa->in=1;
+    else if (strncasecmp(p, "out", 3)==0)
+      pa->in=0;
+    else if (strncasecmp(p, "proto=", 6)==0)
+      read_proto(p+6, &pa->proto);
+    else if (strncmp(p, "as=", 3)==0)
+      pa->as=atoi(p+3);
+    else if (strncasecmp(p, "ifindex=", 8)==0)
+      pa->iface=atoi(p+8);
+    else if (strncasecmp(p, "class=", 6)==0)
+      pa->class=atoi(p+6);
+    else if (strncasecmp(p, "nexthop=", 8)==0)
+      pa->nexthop=inet_addr(p+8);
+    else if (strncasecmp(p, "ip=", 3)==0)
+      read_ip(p+3, &pa->ip, &pa->mask);
+    else if (strncasecmp(p, "remote=", 7)==0)
+      read_ip(p+7, &pa->remote, &pa->remotemask);
+    else if (strncasecmp(p, "port=", 5)==0)
+      read_ports(p+5, &pa->port1, &pa->port2, pa->proto);
+    else if (strncasecmp(p, "localport=", 10)==0)
+      read_ports(p+10, &pa->lport1, &pa->lport2, pa->proto);
+    else if (strncasecmp(p, "src=", 4)==0)
+    { p+=4;
+      if (*p == '!')
+      { p++;
+        pa->not=1;
+      }
+      read_ip(p, &pa->src, &pa->srcmask);
+    }
+#ifdef DO_SNMP
+    else if (strncasecmp(p, "ifname=", 7)==0)
+      pa->iface=get_ifindex(&cur_router, IFNAME, &p);
+    else if (strncasecmp(p, "ifdescr=", 8)==0)
+      pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
+    else if (strncasecmp(p, "ifalias=", 8)==0)
+      pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
+    else if (strncasecmp(p, "ifip=", 5)==0)
+      pa->iface=get_ifindex(&cur_router, IFIP, &p);
+#endif
+    while (*p && !isspace(*p)) p++;
+  }
+  return 0;
+}
+
+int config(char *name)
+{
+  FILE *f, *finc;
+  char str[256];
+  char *p, *p1;
+  int i;
+
+#ifdef DO_PERL
+  exitperl();
+#endif
   if (fromshmem) freeshmem();
   fromshmem=0;
   mapkey=MAPKEY;
@@ -185,7 +433,7 @@ int config(char *name)
 #endif
 #ifdef DO_MYSQL
   mysql_user[0] = mysql_pwd[0] = mysql_host[0] = mysql_socket[0] = '\0';
-  strcpy(mysql_db, "flowd");
+  strcpy(mysql_db,     "flowd");
   strcpy(mysql_table,  "traffic_%Y_%m");
   strcpy(mysql_utable, "users");
   mysql_port=0;
@@ -233,244 +481,134 @@ int config(char *name)
 #endif
   while (fgets(str, sizeof(str), f))
   {
-    p=strchr(str, '\n');
-    if (p) *p='\0';
-    p=strchr(str, '#');
-    if (p) *p='\0';
-    for (p=str; isspace(*p); p++);
-    if (*p=='\0') continue;
-    if (p!=str) strcpy(str, p);
-    if (str[0]=='\0') continue;
-    for (p=str+strlen(str)-1; isspace(*p); *p--='\0');
-    // for (p=str; *p; p++) *p=tolower(*p);
-    p=str;
-    if (strncasecmp(p, "log=", 4)==0)
-    { strncpy(logname, p+4, sizeof(logname)-1);
-      continue;
-    }
-    if (strncasecmp(p, "snap=", 5)==0)
-    { strncpy(snapfile, p+5, sizeof(snapfile)-1);
-      continue;
-    }
-    if (strncasecmp(p, "acl=", 4)==0)
-    { strncpy(aclname, p+4, sizeof(aclname)-1);
-      fromacl=1;
-      continue;
-    }
-    if (strncasecmp(p, "pid=", 4)==0)
-    { strncpy(pidfile, p+4, sizeof(pidfile)-1);
-      continue;
-    }
-    if (strncasecmp(p, "write-int=", 10)==0)
-    { write_interval = atoi(p+10);
-      if (write_interval == 0) write_interval=WRITE_INTERVAL;
-      continue;
-    }
-    if (strncasecmp(p, "reload-int=", 11)==0)
-    { reload_interval = atoi(p+11);
-      if (reload_interval == 0) reload_interval=RELOAD_INTERVAL;
-      continue;
-    }
-    if (strncasecmp(p, "bindaddr=", 9)==0)
-    { bindaddr=inet_addr(p+9);
-      continue;
-    }
-    if (strncasecmp(p, "port=", 5)==0)
-    { port=atoi(p+5);
-      continue;
-    }
-    if (strncasecmp(p, "mapkey=", 7)==0)
-    { mapkey = atol(p+7);
-      if (mapkey == 0) mapkey=MAPKEY;
-      fromshmem=1;
-      continue;
-    }
-    if (strncasecmp(p, "fromshmem=", 10)==0)
-    { if (p[10]=='n' || p[10]=='N' || p[10]=='0' || p[10]=='f' || p[10]=='F')
-        fromshmem=0;
-      else
-        fromshmem=1;
-      continue;
-    }
-    if (strncasecmp(p, "classes=", 8)==0)
+    if (strncasecmp(str, "@include", 8) == 0 && isspace(str[8]))
     {
-      p+=8;
-      i=0;
-      while (p && *p)
-      { 
-        if (i==NCLASSES)
-        { fprintf(stderr, "Too many classes!\n");
-          break;
-        }
-        for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p1++);
-        if (*p1) *p1++='\0';
-        for (j=0; j<i; j++)
-          if (strcmp(p, uaname[j]) == 0)
-            break;
-        uaindex[i]=j;
-        if (j<i)
-          uaname[i][0]='\0';
-        else
-          strncpy(uaname[i], p, sizeof(uaname[i])-1);
-        for (p=p1; *p && (isspace(*p) || *p==','); p++);
-        i++;
+      for (p=str+9; *p && isspace(*p); p++);
+      if (*p=='\"')
+      {
+        p++;
+	p1=strchr(p, '\"');
+	if (p1==NULL)
+	{
+          fprintf(stderr, "Unmatched quotes in include, ignored:\n%s\n", str);
+	  continue;
+	}
+	*p1='\0';
       }
+      if ((finc=fopen(p, "r")) == NULL)
+      {
+        fprintf(stderr, "Can't open %s: %s, include ignored\n", p, strerror(errno));
+	continue;
+      }
+      while (fgets(str, sizeof(str), finc))
+        parse_line(str);
+      fclose(finc);
       continue;
     }
 #ifdef DO_PERL
-    if (strncasecmp(p, "perlwrite=", 10)==0)
-    { char *p1 = p+10;
-      p=strstr(p1, "::");
-      if (p==NULL)
-      { fprintf(stderr, "Incorrect perlwrite=%s ignored!", p1);
-        continue;
-      }
-      *p=0;
-      strncpy(perlfile, p1, sizeof(perlfile));
-      strncpy(perlwrite, p+2, sizeof(perlwrite));
-      continue;
-    }
-#endif
-#ifdef DO_MYSQL
-    if (strncasecmp(p, "mysql_user=", 11)==0)
-    { strncpy(mysql_user, p+11, sizeof(mysql_user)-1);
-      continue;
-    }
-    if (strncasecmp(p, "mysql_host=", 11)==0)
-    { strncpy(mysql_host, p+11, sizeof(mysql_host)-1);
-      p=strchr(mysql_host, ':');
-      if (p)
-      { mysql_port=atoi(p+1);
-        *p=0;
-      }
-      continue;
-    }
-    if (strncasecmp(p, "mysql_pwd=", 10)==0)
-    { strncpy(mysql_pwd, p+10, sizeof(mysql_pwd)-1);
-      continue;
-    }
-    if (strncasecmp(p, "mysql_db=", 9)==0)
-    { strncpy(mysql_db, p+9, sizeof(mysql_db)-1);
-      continue;
-    }
-    if (strncasecmp(p, "mysql_socket=", 13)==0)
-    { strncpy(mysql_socket, p+13, sizeof(mysql_socket)-1);
-      continue;
-    }
-    if (strncasecmp(p, "mysql_table=", 12)==0)
-    { strncpy(mysql_table, p+12, sizeof(mysql_table)-1);
-      continue;
-    }
-    if (strncasecmp(p, "mysql_utable=", 13)==0)
-    { strncpy(mysql_utable, p+13, sizeof(mysql_utable)-1);
-      continue;
-    }
-#endif
-    if (strncasecmp(p, "router=", 7)==0)
+    if (strncasecmp(str, "@perl_include", 13) == 0 && isspace(str[13]))
     {
-      p+=7;
-      freerouter(&cur_router);
-#ifdef DO_SNMP
-      if ((p1=strchr(p, '@'))!=NULL)
-      { *p1++='\0';
-        strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
-        p=p1;
-      } else
-        strcpy(cur_router.community, "public");
-#endif
-      /* get router address */
-      if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
-      { if (strcmp(p, "any")==0)
-          cur_router.addr=(u_long)-1;
-        else
-          fprintf(stderr, "Warning: Router %s not found\n", p);
+      char perlincfile[256], perlincfunc[256], *perlincargs[64];
+      int h[2], pid;
+
+      for (p=str+14; *p && isspace(*p); p++);
+      p1=strstr(p, "::");
+      if (p1==NULL)
+      { fprintf(stderr, "Incorrect perl_include ignored: %s\n", str);
         continue;
       }
-      /* use only first address */
-      memcpy(&cur_router.addr, he->h_addr_list[0], he->h_length);
+      *p1='\0';
+      strncpy(perlincfile, p, sizeof(perlincfile)-1);
+      *p1=':';
+      if (access(perlincfile, R_OK))
+      {
+        fprintf(stderr, "Perl include file %s not found, ignored\n", perlincfile);
+        continue;
+      }
+      p1+=2;
+      p=strchr(p1, '(');
+      if (p) *p++='\0';
+      strncpy(perlincfunc, p1, sizeof(perlincfunc)-1);
+      perlincargs[i=0]=NULL;
+      while (p && *p && isspace(*p)) p++;
+      if (p && *p && *p!=')')
+        while (p && *p)
+        {
+          if (*p=='\"')
+          {
+            p1=strchr(p, '\"');
+            if (p1==NULL)
+            {
+              fprintf(stderr, "Unmatched quotes in perl_include, params ignored\n");
+              break;
+            }
+            *p1++='\0';
+            perlincargs[i++]=strdup(p+1);
+            p=p1+1;
+            while (*p && isspace(*p)) p++;
+          } else
+          {
+            p1=strpbrk(p, " ,)");
+            if (p1==NULL)
+            {
+              fprintf(stderr, "Unmatched brackets in perl_include, params ignored\n");
+              break;
+            }
+            while (*p1 && isspace(*p1)) *p1++='\0';
+            perlincargs[i++]=strdup(p);
+            p=p1;
+          }
+          if (*p=='\0')
+          {
+            fprintf(stderr, "Unmatched brackets in perl_include, params ignored\n");
+            break;
+          }
+          if (*p==')') break;
+          if (*p==',') p++;
+          if (i==sizeof(perlincargs)/sizeof(perlincargs[0])-1)
+          { fprintf(stderr, "Warning: too many args in perl_include, rest ignored\n");
+            break;
+          }
+        }
+      perlincargs[i]=NULL;
+      if (pipe(h))
+      { fprintf(stderr, "Can't create pipe: %s\n", strerror(errno));
+	for(i=0; perlincargs[i]; i++)
+	{
+          free(perlincargs[i]);
+	  perlincargs[i]=NULL;
+	  continue;
+	}
+      }
+      pid=fork();
+      if (pid<0)
+      { fprintf(stderr, "Can't fork: %s!\n", strerror(errno));
+	close(h[0]);
+	close(h[1]);
+	for(i=0; perlincargs[i]; i++)
+	{
+          free(perlincargs[i]);
+	  perlincargs[i]=NULL;
+	  continue;
+	}
+      }
+      else if (pid==0)
+      {
+        close(h[0]);
+	dup2(h[1], fileno(stdout));
+	close(h[1]);
+	perl_call(perlincfile, perlincfunc, perlincargs);
+	exit(0);
+      }
+      close(h[1]);
+      finc=fdopen(h[0], "r");
+      while (fgets(str, sizeof(str), finc))
+        parse_line(str);
+      waitpid(pid, NULL, 0);
+      fclose(finc);
       continue;
     }
-    for (p=str; *p && !isspace(*p); p++);
-    if (*p) *p++='\0';
-    if (strchr(str, '=')) continue; /* keyword */
-    /* find link name */
-    for (pl=linkhead; pl; pl=pl->next)
-    { if (strcmp(pl->name, str)==0)
-        break;
-    }
-    if (!pl && strcasecmp(str, "ignore"))
-    { pl=calloc(1, sizeof(*pl));
-      pl->next=linkhead;
-      strcpy(pl->name, str);
-      linkhead=pl;
-    }
-    /* create attribute structure */
-    pa = calloc(1, sizeof(*pa));
-    memset(pa, 0xff, sizeof(*pa));
-    pa->link = pl;
-    pa->next = NULL;
-    pa->reverse=pa->fallthru=0;
-    if (cur_router.addr!=(u_long)-1)
-      pa->src=ntohl(cur_router.addr);	/* mask /32 */
-    else
-      pa->src=pa->srcmask=0;		/* match any */
-    pa->not=0;
-    if (attrhead==NULL)
-      attrhead = pa;
-    else
-      attrtail->next = pa;
-    attrtail = pa;
-    /* fill attribute structure */
-    while (*p)
-    { while (*p && isspace(*p)) p++;
-      if (!*p) break;
-      if (strncasecmp(p, "reverse", 7)==0)
-      { pa->reverse=1;
-      }
-      else if (strncasecmp(p, "fallthru", 8)==0)
-        pa->fallthru=1;
-      else if (strncasecmp(p, "in", 2)==0)
-        pa->in=1;
-      else if (strncasecmp(p, "out", 3)==0)
-        pa->in=0;
-      else if (strncasecmp(p, "proto=", 6)==0)
-        read_proto(p+6, &pa->proto);
-      else if (strncmp(p, "as=", 3)==0)
-        pa->as=atoi(p+3);
-      else if (strncasecmp(p, "ifindex=", 8)==0)
-        pa->iface=atoi(p+8);
-      else if (strncasecmp(p, "class=", 6)==0)
-        pa->class=atoi(p+6);
-      else if (strncasecmp(p, "nexthop=", 8)==0)
-        pa->nexthop=inet_addr(p+8);
-      else if (strncasecmp(p, "ip=", 3)==0)
-        read_ip(p+3, &pa->ip, &pa->mask);
-      else if (strncasecmp(p, "remote=", 7)==0)
-        read_ip(p+7, &pa->remote, &pa->remotemask);
-      else if (strncasecmp(p, "port=", 5)==0)
-        read_ports(p+5, &pa->port1, &pa->port2, pa->proto);
-      else if (strncasecmp(p, "localport=", 10)==0)
-        read_ports(p+10, &pa->lport1, &pa->lport2, pa->proto);
-      else if (strncasecmp(p, "src=", 4)==0)
-      { p+=4;
-	if (*p == '!')
-	{ p++;
-	  pa->not=1;
-	}
-        read_ip(p, &pa->src, &pa->srcmask);
-      }
-#ifdef DO_SNMP
-      else if (strncasecmp(p, "ifname=", 7)==0)
-        pa->iface=get_ifindex(&cur_router, IFNAME, &p);
-      else if (strncasecmp(p, "ifdescr=", 8)==0)
-        pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
-      else if (strncasecmp(p, "ifalias=", 8)==0)
-        pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
-      else if (strncasecmp(p, "ifip=", 5)==0)
-        pa->iface=get_ifindex(&cur_router, IFIP, &p);
 #endif
-      while (*p && !isspace(*p)) p++;
-    }
   }
   fclose(f);
   if (fromshmem)
@@ -488,8 +626,7 @@ int config(char *name)
     uaname[0][0]='\0';
   freerouter(&cur_router);
 #ifdef DO_PERL
-  exitperl();
-  PerlStart();
+  PerlStart(perlfile);
 #endif
   return 0;
 }

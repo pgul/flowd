@@ -78,9 +78,17 @@ void debug(int level, char *format, ...);
 
 #ifdef DO_PERL
 void exitperl(void);
-int  PerlStart(void);
+int  PerlStart(char *perlfile);
+void plstart(void);
+void plstop(void);
+void plwrite(char *user, char *src, char *dst, char *direct, int bytes);
+void perl_call(char *file, const char *func, char **args);
 
-extern char perlfile[], perlstart[], perlwrite[], perlstop[];
+extern char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
+#else
+#define plstart()
+#define plstop()
+#define plwrite(user, src, dst, direct, bytes)
 #endif
 
 #ifdef DO_MYSQL
