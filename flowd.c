@@ -71,14 +71,16 @@ void hup(int signo)
     }
   if (signo==SIGINFO)
   { /* snap 10M of traffic */
-    if (fsnap) fclose(fsnap);
-    snap_traf=10*1024*1024; 
-    fsnap=fopen(snapfile, "a");
-    if (fsnap==NULL) snap_traf=0;
-    else
+    if (fsnap)
+    { fclose(fsnap);
+      fsnap=fopen(snapfile, "a");
+    } else
     { time_t curtime=time(NULL);
-      fprintf(fsnap, "\n\n----- %s\n", ctime(&curtime));
+      fsnap=fopen(snapfile, "a");
+      if (fsnap) fprintf(fsnap, "\n\n----- %s\n", ctime(&curtime));
     }
+    if (fsnap==NULL) snap_traf=0;
+    else snap_traf=10*1024*1024; 
   }
   if (signo==SIGINT)
   { /* restart myself */
