@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include "flowd.h"
 
 struct linktype *linkhead=NULL;
@@ -31,6 +32,15 @@ char mysql_table[256], mysql_utable[256];
 unsigned mysql_port;
 #endif
 
+static void freerouter(struct router_t *router)
+{
+#ifdef HAVE_UCD_SNMP_SNMP_H
+  if (router->data) free(router->data);
+  memset(router, 0, sizeof(*router));
+#endif
+  router->addr = (u_long)-1;
+}
+
 int config(char *name)
 {
   FILE *f;
@@ -39,6 +49,8 @@ int config(char *name)
   char str[256];
   char *p, *p1;
   int i, j;
+  struct router_t cur_router;
+  struct hostent *he;
 
   if (fromshmem) freeshmem();
   fromshmem=0;
@@ -84,6 +96,7 @@ int config(char *name)
   { uaindex[i]=i;
     snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
   }
+  cur_router.addr=(u_long)-1;
   while (fgets(str, sizeof(str), f))
   {
     p=strchr(str, '\n');
@@ -95,6 +108,7 @@ int config(char *name)
     if (p!=str) strcpy(str, p);
     if (str[0]=='\0') continue;
     for (p=str+strlen(str)-1; isspace(*p); *p--='\0');
+    for (p=str; *p; p++) *p=tolower(*p);
     p=str;
     if (strncmp(p, "log=", 4)==0)
     { strncpy(logname, p+4, sizeof(logname)-1);
@@ -217,6 +231,26 @@ int config(char *name)
       continue;
     }
 #endif
+    if (strncmp(p, "router=", 7)==0)
+    {
+      p+=7;
+      freerouter(&cur_router);
+#ifdef HAVE_UCD_SNMP_SNMP_H
+      if ((p1=strchr(p, '@'))!=NULL)
+      { *p1++='\0';
+        strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
+        p=p1;
+      } else
+        strcpy(cur_router.community, "public");
+#endif
+      /* get router address */
+      if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
+      { printf("Warning: Router %s not found\n", p);
+        continue;
+      }
+      /* use only first address */
+      memcpy(&cur_router.addr, he->h_addr_list[0], he->h_length);
+    }
     for (p=str; *p && !isspace(*p); p++);
     if (*p) *p++='\0';
     if (strchr(str, '=')) continue; /* keyword */
@@ -237,7 +271,10 @@ int config(char *name)
     pa->link = pl;
     pa->next = NULL;
     pa->reverse=pa->fallthru=0;
-    pa->src=pa->srcmask=0;
+    if (cur_router.addr!=(u_long)-1)
+      pa->src=cur_router.addr; /* mask /32 */
+    else
+      pa->src=pa->srcmask=0;   /* match any */
     pa->not=0;
     if (attrhead==NULL)
       attrhead = pa;
@@ -312,7 +349,16 @@ int config(char *name)
                  ((char *)&masked)[1], ((char *)&masked)[0]);
         }
       }
-
+#ifdef HAVE_UCD_SNMP_SNMP_H
+      else if (strncmp(p, "ifname=", 7)==0)
+        pa->iface=get_ifindex(&cur_router, IFNAME, p+7);
+      else if (strncmp(p, "ifdescr=", 8)==0)
+        pa->iface=get_ifindex(&cur_router, IFDESCR, p+8);
+      else if (strncmp(p, "ifalias=", 8)==0)
+        pa->iface=get_ifindex(&cur_router, IFDESCR, p+8);
+      else if (strncmp(p, "ifip=", 5)==0)
+        pa->iface=get_ifindex(&cur_router, IFIP, p+5);
+#endif
       while (*p && !isspace(*p)) p++;
     }
   }
@@ -323,10 +369,219 @@ int config(char *name)
       return 1;
     }
   }
+  freerouter(&cur_router);
 #ifdef DO_PERL
   exitperl();
   PerlStart();
 #endif
   return 0;
 }
+
+#ifdef HAVE_UCD_SNMP_SNMP_H
+/* find ifindex by snmp param */
+#include <ucd-snmp/asn1.h>
+#include <ucd-snmp/snmp.h>
+#include <ucd-snmp/snmp_api.h>
+#include <ucd-snmp/snmp_client.h>
+#include <ucd-snmp/snmp_impl.h>
+#include <ucd-snmp/snmp_parse_args.h>
+#include <ucd-snmp/mib.h>
+#include <ucd-snmp/system.h>
+#include <ucd-snmp/default_store.h>
+
+static char *oid2str(enum ifoid_t oid)
+{
+  switch (oid)
+  { case IFNAME:  return "ifName";
+    case IFDESCR: return "ifDescr";
+    case IFALIAS: return "ifAlias";
+    case IFIP:    return "ifIP";
+    case IFUNDEF: return "undef";
+  }
+  return "";
+}
+
+static char *oid2oid(enum ifoid_t oid)
+{
+  switch (oid)
+  { case IFNAME:  return "ifName";
+    case IFDESCR: return "ifDescr";
+    case IFALIAS: return "ifAlias";
+    case IFIP:    return "ipAdEntIfIndex";
+    case IFUNDEF: return "undef";
+  }
+  return "";
+}
+
+static int comp(const void *a, const void *b)
+{
+  return strcmp(((struct routerdata *)a)->val, ((struct routerdata *)b)->val);
+}
+
+static int snmpwalk(struct router_t *router)
+{
+  struct snmp_session  session, *ss;
+  struct snmp_pdu *pdu, *response;
+  struct variable_list *vars;
+  oid    root[MAX_OID_LEN], name[MAX_OID_LEN];
+  size_t rootlen, namelen;
+  int    running, status, exitval=0, nifaces, varslen;
+  char   *oid, *curvar, ipbuf[16];
+  struct {
+           unsigned short ifindex;
+	   char val[256];
+  } *data;
+
+  /* get the initial object and subtree */
+  memset(&session, 0, sizeof(session));
+  snmp_sess_init(&session);
+  init_snmp("snmpapp");
+  rootlen=MAX_OID_LEN;
+  oid=oid2oid(router->oid);
+  if (snmp_parse_oid(oid, root, &rootlen)==NULL)
+  { fprintf(stderr, "Can't parse oid %s\n", oid);
+    snmp_perror(oid);
+    return 1;
+  }
+  /* open an SNMP session */
+  strcpy(ipbuf, inet_ntoa(*(struct in_addr *)&router->addr));
+  session.peername = ipbuf;
+  session.community = router->community;
+  session.community_len = strlen(router->community);
+  session.version = ds_get_int(DS_LIBRARY_ID, DS_LIB_SNMPVERSION);
+  if ((ss = snmp_open(&session)) == NULL)
+  { snmp_sess_perror("snmpwalk", &session);
+    return 1;
+  }
+  /* get first object to start walk */
+  memmove(name, root, rootlen*sizeof(oid));
+  namelen = rootlen;
+  running = 1;
+  nifaces = varslen = 0;
+  data = NULL;
+
+  while (running) {
+    /* create PDU for GETNEXT request and add object name to request */
+    pdu = snmp_pdu_create(SNMP_MSG_GETNEXT);
+    snmp_add_null_var(pdu, name, namelen);
+    /* do the request */
+    status = snmp_synch_response(ss, pdu, &response);
+    if (status == STAT_SUCCESS) {
+      if (response->errstat == SNMP_ERR_NOERROR) {
+        /* check resulting variables */
+        for (vars = response->variables; vars; vars = vars->next_variable) {
+          if ((vars->name_length < rootlen) ||
+              (memcmp(root, vars->name, rootlen * sizeof(oid))!=0)) {
+            /* not part of this subtree */
+            running = 0;
+            continue;
+          }
+          if (nifaces%16==0)
+            data=realloc(data, (nifaces+16)*sizeof(data[0]));
+          if (router->oid==IFIP)
+          { sprintf(data[nifaces].val, "%lu.%lu.%lu.%lu",
+                    vars->name_loc[vars->name_length-4],
+                    vars->name_loc[vars->name_length-3],
+                    vars->name_loc[vars->name_length-2],
+                    vars->name_loc[vars->name_length-1]);
+            data[nifaces++].ifindex=vars->val.integer[0];
+          } else
+          {
+            strncpy(data[nifaces].val, vars->val.string, sizeof(data->val)-1);
+            if (vars->val_len<sizeof(data->val))
+              data[nifaces].val[vars->val_len]='\0';
+            else
+              data[nifaces].val[sizeof(data->val)-1]='\0';
+            data[nifaces++].ifindex=(unsigned short)vars->name_loc[vars->name_length-1];
+          }
+          varslen += vars->val_len+1;
+          if ((vars->type != SNMP_ENDOFMIBVIEW) &&
+              (vars->type != SNMP_NOSUCHOBJECT) &&
+              (vars->type != SNMP_NOSUCHINSTANCE)) {
+            /* not an exception value */
+            memmove((char *)name, (char *)vars->name,
+                    vars->name_length * sizeof(oid));
+            namelen = vars->name_length;
+          } else
+            /* an exception value, so stop */
+            running = 0;
+        }
+      } else {
+        /* error in response */
+        running = 0;
+        if (response->errstat != SNMP_ERR_NOSUCHNAME) {
+          fprintf(stderr, "Error in packet.\n");
+          exitval = 2;
+        }
+      }
+    } else if (status == STAT_TIMEOUT) {
+      fprintf(stderr, "Timeout\n");
+      running = 0;
+      exitval = 2;
+    } else {    /* status == STAT_ERROR */
+      fprintf(stderr, "SNMP Error\n");
+      snmp_sess_perror("snmpwalk", ss);
+      running = 0;
+      exitval = 2;
+    }
+    if (response) snmp_free_pdu(response);
+  }
+  snmp_close(ss);
+  if (exitval) return exitval;
+  /* ok, copy data to router structure */
+  router->data = malloc(sizeof(router->data[0])*nifaces+varslen);
+  curvar=((char *)router->data)+sizeof(router->data[0])*nifaces;
+  router->nifaces=nifaces;
+  for (nifaces=0; nifaces<router->nifaces; nifaces++)
+  { router->data[nifaces].ifindex=data[nifaces].ifindex;
+    router->data[nifaces].val=curvar;
+    strcpy(curvar, data[nifaces].val);
+    curvar+=strlen(curvar)+1;
+  }
+  if (data) free(data);
+  /* data copied, sort it */
+  qsort(router->data, nifaces, sizeof(router->data[0]), comp);
+  return 0;
+}
+
+unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
+                           const char *val)
+{
+  int left, right, mid, i;
+
+  if (router->addr==(u_long)-1)
+  { printf("Warning: Router not specified for %s\n", oid2str(oid));
+    return (unsigned short)-2; /* not matched for any interface */
+  }
+  if (router->oid!=oid)
+  { /* do snmpwalk for the oid */
+    if (router->data)
+    { free(router->data);
+      router->data=NULL;
+    }
+    router->nifaces=0;
+    router->oid=oid;
+    if (snmpwalk(router))
+    { if (router->data)
+      { free(router->data);
+        router->data=NULL;
+      }
+      router->nifaces=0;
+      return (unsigned short)-2;
+    }
+  }
+  /* find ifindex for given val */
+  left=0; right=router->nifaces;
+  while (left<right)
+  { mid=(left+right)/2;
+    if ((i=strcmp(router->data[mid].val, val))==0)
+      return mid;
+    if (i>0) right=mid;
+    else left=mid+1;
+  }
+  printf("Warning: %s %s not found at %s\n", oid2str(oid), val,
+         inet_ntoa(*(struct in_addr *)&(router->addr)));
+  return (unsigned short)-2;
+}
+#endif
 

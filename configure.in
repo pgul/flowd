@@ -13,7 +13,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 
 dnl Checks for library functions.
 
-AC_CHECK_FUNCS(inet_addr)
+AC_CHECK_FUNCS(inet_addr strdup)
 case x$ac_cv_func_inet_addr in
   xno)
     AC_MSG_CHECKING(for inet_addr in -lxnet)
@@ -127,6 +127,24 @@ case x$do_mysql in
        ;;
    esac
    ;;
+esac
+
+dnl Check for snmp
+AC_ARG_WITH(snmp,
+            [  --with-snmp             SNMP support (default no)],
+            do_snmp=yes, do_snmp=no)
+case x$do_snmp in
+  xyes)
+    AC_CHECK_HEADERS(stdarg.h ucd-snmp/snmp.h)
+    case x$ac_cv_header_ucd_snmp_snmp_h in
+      xno)
+        AC_MSG_WARN([ucd-snmp not found, SNMP support disabled])
+        ;;
+      xyes)
+        LIBS="$LIBS -lsnmp -lcrypto"
+        ;;
+    esac
+  ;;
 esac
 
 dnl Set dirs

@@ -46,9 +46,24 @@ struct attrtype {
 	struct attrtype *next;
 	int reverse, fallthru;
 	unsigned short iface, as, class, proto;
+	u_long router;
 };
 
 extern struct attrtype *attrhead;
+
+
+struct router_t {
+    u_long addr;
+#ifdef HAVE_UCD_SNMP_SNMP_H
+    char community[256];
+    enum ifoid_t { IFUNDEF, IFNAME, IFDESCR, IFALIAS, IFIP } oid;
+    int  nifaces;
+    struct routerdata {
+      unsigned short ifindex;
+      char *val;
+    } *data;
+#endif
+};
 
 extern time_t last_write, last_reload;
 extern struct linktype *linkhead;
@@ -86,3 +101,7 @@ extern unsigned mysql_port;
 
 void mysql_start(void);
 #endif 
+#ifdef HAVE_UCD_SNMP_SNMP_H
+unsigned short get_ifindex(struct router_t*, enum ifoid_t, const char*);
+#endif
+

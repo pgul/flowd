@@ -77,14 +77,15 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
         break; // ignore
   if (fsnap && !pa->fallthru)
   { 
-      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s.%s2%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u\n",
+      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s.%s2%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
         ((in^pa->reverse) ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
         pa->link->name, uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
-        input, output);
+        input, output,
+        ((char *)&flowsrc)[0], ((char *)&flowsrc)[1], ((char *)&flowsrc)[2], ((char *)&flowsrc)[3]);
     fflush(fsnap);
     if ((snap_traf-=len) <= 0)
     { fclose(fsnap);
