@@ -355,9 +355,9 @@ int config(char *name)
       else if (strncasecmp(p, "ip=", 3)==0)
         read_ip(p+3, &pa->ip, &pa->mask);
       else if (strncasecmp(p, "src=", 4)==0)
-        read_ip(p+3, &pa->src, &pa->srcmask);
+        read_ip(p+4, &pa->src, &pa->srcmask);
       else if (strncasecmp(p, "remote=", 4)==0)
-        read_ip(p+3, &pa->remote, &pa->remotemask);
+        read_ip(p+7, &pa->remote, &pa->remotemask);
 #ifdef DO_SNMP
       else if (strncasecmp(p, "ifname=", 7)==0)
         pa->iface=get_ifindex(&cur_router, IFNAME, p+7);
