@@ -173,48 +173,15 @@ case x$withval in
         AC_MSG_CHECKING(for libsnmp)
         OLD_LIBS="$LIBS"
         LIBS="$LIBS -lsnmp -lcrypto"
-        AC_TRY_LINK([
-          #include <sys/types.h>
-          #include <sys/socket.h>
-          #include <netinet/in.h>
-          #include <arpa/inet.h>
-          #include <ucd-snmp/asn1.h>
-          #include <ucd-snmp/snmp.h>
-          #include <ucd-snmp/snmp_api.h>
-          #include <ucd-snmp/snmp_client.h>
-          #include <ucd-snmp/snmp_impl.h>
-          #include <ucd-snmp/snmp_parse_args.h>
-          #include <ucd-snmp/mib.h>
-          #include <ucd-snmp/system.h>
-          #include <ucd-snmp/default_store.h>
-         ],[
-          struct snmp_session  session;
-          snmp_sess_init(&session)
-         ], AC_MSG_RESULT(yes), AC_MSG_RESULT(no); snmp_ok=no,
-          AC_MSG_RESULT(cross-compiling. No assumptions made) snmp_ok=no)
+        AC_TRY_LINK([],[snmp_sess_init()],
+          AC_MSG_RESULT(yes), AC_MSG_RESULT(no); snmp_ok=no,
+          AC_MSG_RESULT(cross-compiling. No assumptions made); snmp_ok=no)
         case x$snmp_ok in
           xno)
             AC_MSG_CHECKING(for libsnmp in /usr/local/lib)
             OLD_LDFLAGS="$LDFLAGS"
             LDFLAGS="$LDFLAGS -L/usr/local/lib"
-            AC_TRY_LINK([
-              #include <sys/types.h>
-              #include <sys/socket.h>
-              #include <netinet/in.h>
-              #include <arpa/inet.h>
-              #include <ucd-snmp/asn1.h>
-              #include <ucd-snmp/snmp.h>
-              #include <ucd-snmp/snmp_api.h>
-              #include <ucd-snmp/snmp_client.h>
-              #include <ucd-snmp/snmp_impl.h>
-              #include <ucd-snmp/snmp_parse_args.h>
-              #include <ucd-snmp/mib.h>
-              #include <ucd-snmp/system.h>
-              #include <ucd-snmp/default_store.h>
-             ],[
-              struct snmp_session  session;
-              snmp_sess_init(&session)
-             ],
+            AC_TRY_LINK([],[snmp_sess_init()],
              AC_MSG_RESULT(yes); snmp_ok=yes, AC_MSG_RESULT(no),
              AC_MSG_RESULT(cross-compiling. No assumptions made))
             case x$snmp_ok in

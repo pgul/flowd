@@ -1467,28 +1467,11 @@ echo "configure:1464: checking for libsnmp" >&5
 #line 1468 "configure"
 #include "confdefs.h"
 
-          #include <sys/types.h>
-          #include <sys/socket.h>
-          #include <netinet/in.h>
-          #include <arpa/inet.h>
-          #include <ucd-snmp/asn1.h>
-          #include <ucd-snmp/snmp.h>
-          #include <ucd-snmp/snmp_api.h>
-          #include <ucd-snmp/snmp_client.h>
-          #include <ucd-snmp/snmp_impl.h>
-          #include <ucd-snmp/snmp_parse_args.h>
-          #include <ucd-snmp/mib.h>
-          #include <ucd-snmp/system.h>
-          #include <ucd-snmp/default_store.h>
-         
 int main() {
-
-          struct snmp_session  session;
-          snmp_sess_init(&session)
-         
+snmp_sess_init()
 ; return 0; }
 EOF
-if { (eval echo configure:1492: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1475: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   echo "$ac_t""yes" 1>&6
 else
@@ -1501,35 +1484,18 @@ rm -f conftest*
         case x$snmp_ok in
           xno)
             echo $ac_n "checking for libsnmp in /usr/local/lib""... $ac_c" 1>&6
-echo "configure:1505: checking for libsnmp in /usr/local/lib" >&5
+echo "configure:1488: checking for libsnmp in /usr/local/lib" >&5
             OLD_LDFLAGS="$LDFLAGS"
             LDFLAGS="$LDFLAGS -L/usr/local/lib"
             cat > conftest.$ac_ext <<EOF
-#line 1509 "configure"
+#line 1492 "configure"
 #include "confdefs.h"
 
-              #include <sys/types.h>
-              #include <sys/socket.h>
-              #include <netinet/in.h>
-              #include <arpa/inet.h>
-              #include <ucd-snmp/asn1.h>
-              #include <ucd-snmp/snmp.h>
-              #include <ucd-snmp/snmp_api.h>
-              #include <ucd-snmp/snmp_client.h>
-              #include <ucd-snmp/snmp_impl.h>
-              #include <ucd-snmp/snmp_parse_args.h>
-              #include <ucd-snmp/mib.h>
-              #include <ucd-snmp/system.h>
-              #include <ucd-snmp/default_store.h>
-             
 int main() {
-
-              struct snmp_session  session;
-              snmp_sess_init(&session)
-             
+snmp_sess_init()
 ; return 0; }
 EOF
-if { (eval echo configure:1533: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1499: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   echo "$ac_t""yes" 1>&6; snmp_ok=yes
 else
