@@ -2609,7 +2609,12 @@ echo $ECHO_N "checking for working libperl... $ECHO_C" >&6
        OLD_CFLAGS=$CFLAGS
        LIBS="$LIBS $PERLLOPT"
        CFLAGS="$CFLAGS $PERLCOPT"
-       cat >conftest.$ac_ext <<_ACEOF
+       if test "$cross_compiling" = yes; then
+  echo "$as_me:$LINENO: result: cross-compiling. No assumptions made" >&5
+echo "${ECHO_T}cross-compiling. No assumptions made" >&6; CFLAGS=$OLD_CFLAGS; LIBS=$OLD_LIBS
+
+else
+  cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
 /* confdefs.h.  */
 _ACEOF
@@ -2620,21 +2625,16 @@ cat >>conftest.$ac_ext <<_ACEOF
           #include <EXTERN.h>
           #include <perl.h>
           #include <XSUB.h>
-int
-main ()
-{
-perl_alloc()
-  ;
-  return 0;
-}
+          int main(int argc, char** argv, char** env) {
+            return perl_alloc() ? 0 : 1;
+          }
 _ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
+rm -f conftest$ac_exeext
 if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   (eval $ac_link) 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-         { ac_try='test -s conftest$ac_exeext'
+  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
   { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
   (eval $ac_try) 2>&5
   ac_status=$?
@@ -2646,13 +2646,16 @@ _ACEOF
  echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6; WORKING_PERL=yes
 else
-  echo "$as_me: failed program was:" >&5
+  echo "$as_me: program exited with status $ac_status" >&5
+echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
+( exit $ac_status )
 echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; CFLAGS=$OLD_CFLAGS; LIBS=$OLD_LIBS
 fi
-rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+rm -f core core.* *.core gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
+fi
        ;;
    esac
    ;;
