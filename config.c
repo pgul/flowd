@@ -447,8 +447,8 @@ int config(char *name)
         read_ip(p+7, &pa->remote, &pa->remotemask);
       else if (strncasecmp(p, "port=", 5)==0)
         read_ports(p+5, &pa->port1, &pa->port2, pa->proto);
-      else if (strncasecmp(p, "localport=", 5)==0)
-        read_ports(p+5, &pa->lport1, &pa->lport2, pa->proto);
+      else if (strncasecmp(p, "localport=", 10)==0)
+        read_ports(p+10, &pa->lport1, &pa->lport2, pa->proto);
       else if (strncasecmp(p, "src=", 4)==0)
       { p+=4;
 	if (*p == '!')
