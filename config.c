@@ -48,10 +48,7 @@ void debug(char *format, ...)
 
 static void freerouter(struct router_t *router)
 {
-#ifdef DO_SNMP
-  if (router->data) free(router->data);
   memset(router, 0, sizeof(*router));
-#endif
   router->addr = (u_long)-1;
 }
 
@@ -264,11 +261,15 @@ int config(char *name)
 #endif
       /* get router address */
       if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
-      { printf("Warning: Router %s not found\n", p);
+      { if (strcmp(p, "any")==0)
+          cur_router.addr=(u_long)-1;
+        else
+          printf("Warning: Router %s not found\n", p);
         continue;
       }
       /* use only first address */
       memcpy(&cur_router.addr, he->h_addr_list[0], he->h_length);
+      continue;
     }
     for (p=str; *p && !isspace(*p); p++);
     if (*p) *p++='\0';
