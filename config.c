@@ -56,11 +56,16 @@ static void freerouter(struct router_t *router)
 static void read_ip(char *p, u_long *ip, u_long *mask)
 {
   char c, *p1;
+  long addr;
 
   for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
   c=*p1;
   *p1='\0';
-  *ip = ntohl(inet_addr(p));
+  if ((addr=inet_addr(p)) == -1) {
+    printf("Error: %s is not correct IP-address!\n", p);
+    exit(2);
+  }
+  *ip = ntohl(addr);
   if (c=='/')
     *mask<<=(32-atoi(p1+1));
   *p1=c;
@@ -359,7 +364,13 @@ int config(char *name)
       else if (strncasecmp(p, "ip=", 3)==0)
         read_ip(p+3, &pa->ip, &pa->mask);
       else if (strncasecmp(p, "src=", 4)==0)
-        read_ip(p+4, &pa->src, &pa->srcmask);
+      { p+=4;
+	if (*p == '!')
+	{ p++;
+	  pa->not=1;
+	}
+        read_ip(p, &pa->src, &pa->srcmask);
+      }
       else if (strncasecmp(p, "remote=", 7)==0)
         read_ip(p+7, &pa->remote, &pa->remotemask);
 #ifdef DO_SNMP
