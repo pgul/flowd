@@ -1409,16 +1409,102 @@ else
 fi
 done
 
+    OLD_CFLAGS=$CFLAGS
     case x$ac_cv_header_ucd_snmp_snmp_h in
       xyes)
-        LIBS="$LIBS -lsnmp -lcrypto"
+        snmp_ok=yes
         ;;
       *)
-        case x$do_snmp in
+        echo $ac_n "checking if snmp.h is in /usr/local/include/ucd-snmp""... $ac_c" 1>&6
+echo "configure:1420: checking if snmp.h is in /usr/local/include/ucd-snmp" >&5
+        CFLAGS="$CFLAGS -I /usr/local/include"
+        cat > conftest.$ac_ext <<EOF
+#line 1423 "configure"
+#include "confdefs.h"
+#include <ucd-snmp/snmp.h>
+int main() {
+
+; return 0; }
+EOF
+if { (eval echo configure:1430: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+  rm -rf conftest*
+  echo "$ac_t""yes" 1>&6; snmp_ok=yes
+else
+  echo "configure: failed program was:" >&5
+  cat conftest.$ac_ext >&5
+  rm -rf conftest*
+  echo "$ac_t""no" 1>&6; snmp_ok=no
+fi
+rm -f conftest*
+        case x$snmp_ok in
           xyes)
-            echo "configure: warning: ucd-snmp not found, SNMP support disabled" 1>&2
+            cat >> confdefs.h <<\EOF
+#define HAVE_UCD_SNMP_SNMP_H 1
+EOF
+
+            ac_cv_header_ucd_snmp_snmp_h=yes
+            ;;
+          *)
+            CFLAGS="$OLD_CFLAGS"
+            case x$do_snmp in
+              xyes)
+                echo "configure: warning: ucd-snmp not found, SNMP support disabled" 1>&2
+                do_snmp=no
+                ;;
+            esac
             ;;
         esac
+        ;;
+    esac
+    case x$snmp_ok in
+      xyes)
+        echo $ac_n "checking for working libsnmp""... $ac_c" 1>&6
+echo "configure:1463: checking for working libsnmp" >&5
+        OLD_LIBS="$LIBS"
+        LIBS="$LIBS -lsnmp -lcrypto"
+        cat > conftest.$ac_ext <<EOF
+#line 1467 "configure"
+#include "confdefs.h"
+
+          #include <sys/types.h>
+          #include <sys/socket.h>
+          #include <netinet/in.h>
+          #include <arpa/inet.h>
+          #include <ucd-snmp/asn1.h>
+          #include <ucd-snmp/snmp.h>
+          #include <ucd-snmp/snmp_api.h>
+          #include <ucd-snmp/snmp_client.h>
+          #include <ucd-snmp/snmp_impl.h>
+          #include <ucd-snmp/snmp_parse_args.h>
+          #include <ucd-snmp/mib.h>
+          #include <ucd-snmp/system.h>
+          #include <ucd-snmp/default_store.h>
+         
+int main() {
+
+          struct snmp_session  session;
+          snmp_sess_init(&session)
+         
+; return 0; }
+EOF
+if { (eval echo configure:1491: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+  rm -rf conftest*
+  echo "$ac_t""yes" 1>&6
+else
+  echo "configure: failed program was:" >&5
+  cat conftest.$ac_ext >&5
+  rm -rf conftest*
+  echo "$ac_t""no" 1>&6; CFLAGS=$OLD_CFLAGS; LIBS=$OLD_LIBS; snmp_ok=no
+fi
+rm -f conftest*
+        ;;
+    esac
+    case x$snmp_ok in
+      xyes)
+        cat >> confdefs.h <<\EOF
+#define DO_SNMP 1
+EOF
+
         ;;
     esac
   ;;

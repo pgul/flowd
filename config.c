@@ -34,7 +34,7 @@ unsigned mysql_port;
 
 static void freerouter(struct router_t *router)
 {
-#ifdef HAVE_UCD_SNMP_SNMP_H
+#ifdef DO_SNMP
   if (router->data) free(router->data);
   memset(router, 0, sizeof(*router));
 #endif
@@ -235,7 +235,7 @@ int config(char *name)
     {
       p+=7;
       freerouter(&cur_router);
-#ifdef HAVE_UCD_SNMP_SNMP_H
+#ifdef DO_SNMP
       if ((p1=strchr(p, '@'))!=NULL)
       { *p1++='\0';
         strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
@@ -349,7 +349,7 @@ int config(char *name)
                  ((char *)&masked)[1], ((char *)&masked)[0]);
         }
       }
-#ifdef HAVE_UCD_SNMP_SNMP_H
+#ifdef DO_SNMP
       else if (strncmp(p, "ifname=", 7)==0)
         pa->iface=get_ifindex(&cur_router, IFNAME, p+7);
       else if (strncmp(p, "ifdescr=", 8)==0)
@@ -377,7 +377,7 @@ int config(char *name)
   return 0;
 }
 
-#ifdef HAVE_UCD_SNMP_SNMP_H
+#ifdef DO_SNMP
 /* find ifindex by snmp param */
 #include <ucd-snmp/asn1.h>
 #include <ucd-snmp/snmp.h>
