@@ -127,56 +127,56 @@ int config(char *name)
     if (p!=str) strcpy(str, p);
     if (str[0]=='\0') continue;
     for (p=str+strlen(str)-1; isspace(*p); *p--='\0');
-    for (p=str; *p; p++) *p=tolower(*p);
+    // for (p=str; *p; p++) *p=tolower(*p);
     p=str;
-    if (strncmp(p, "log=", 4)==0)
+    if (strncasecmp(p, "log=", 4)==0)
     { strncpy(logname, p+4, sizeof(logname)-1);
       continue;
     }
-    if (strncmp(p, "snap=", 5)==0)
+    if (strncasecmp(p, "snap=", 5)==0)
     { strncpy(snapfile, p+5, sizeof(snapfile)-1);
       continue;
     }
-    if (strncmp(p, "acl=", 4)==0)
+    if (strncasecmp(p, "acl=", 4)==0)
     { strncpy(aclname, p+4, sizeof(aclname)-1);
       continue;
     }
-    if (strncmp(p, "pid=", 4)==0)
+    if (strncasecmp(p, "pid=", 4)==0)
     { strncpy(pidfile, p+4, sizeof(pidfile)-1);
       continue;
     }
-    if (strncmp(p, "write-int=", 10)==0)
+    if (strncasecmp(p, "write-int=", 10)==0)
     { write_interval = atoi(p+10);
       if (write_interval == 0) write_interval=WRITE_INTERVAL;
       continue;
     }
-    if (strncmp(p, "reload-int=", 11)==0)
+    if (strncasecmp(p, "reload-int=", 11)==0)
     { reload_interval = atoi(p+11);
       if (reload_interval == 0) reload_interval=RELOAD_INTERVAL;
       continue;
     }
-    if (strncmp(p, "bindaddr=", 9)==0)
+    if (strncasecmp(p, "bindaddr=", 9)==0)
     { bindaddr=inet_addr(p+9);
       continue;
     }
-    if (strncmp(p, "port=", 5)==0)
+    if (strncasecmp(p, "port=", 5)==0)
     { port=atoi(p+5);
       continue;
     }
-    if (strncmp(p, "mapkey=", 7)==0)
+    if (strncasecmp(p, "mapkey=", 7)==0)
     { mapkey = atol(p+7);
       if (mapkey == 0) mapkey=MAPKEY;
       fromshmem=1;
       continue;
     }
-    if (strncmp(p, "fromshmem=", 10)==0)
+    if (strncasecmp(p, "fromshmem=", 10)==0)
     { if (p[10]=='n' || p[10]=='N' || p[10]=='0' || p[10]=='f' || p[10]=='F')
         fromshmem=0;
       else
         fromshmem=1;
       continue;
     }
-    if (strncmp(p, "classes=", 8)==0)
+    if (strncasecmp(p, "classes=", 8)==0)
     {
       p+=8;
       i=0;
@@ -202,7 +202,7 @@ int config(char *name)
       continue;
     }
 #ifdef DO_PERL
-    if (strncmp(p, "perlwrite=", 10)==0)
+    if (strncasecmp(p, "perlwrite=", 10)==0)
     { char *p1 = p+10;
       p=strstr(p1, "::");
       if (p==NULL)
@@ -216,11 +216,11 @@ int config(char *name)
     }
 #endif
 #ifdef DO_MYSQL
-    if (strncmp(p, "mysql_user=", 11)==0)
+    if (strncasecmp(p, "mysql_user=", 11)==0)
     { strncpy(mysql_user, p+11, sizeof(mysql_user)-1);
       continue;
     }
-    if (strncmp(p, "mysql_host=", 11)==0)
+    if (strncasecmp(p, "mysql_host=", 11)==0)
     { strncpy(mysql_host, p+11, sizeof(mysql_host)-1);
       p=strchr(mysql_host, ':');
       if (p)
@@ -229,28 +229,28 @@ int config(char *name)
       }
       continue;
     }
-    if (strncmp(p, "mysql_pwd=", 10)==0)
+    if (strncasecmp(p, "mysql_pwd=", 10)==0)
     { strncpy(mysql_pwd, p+10, sizeof(mysql_pwd)-1);
       continue;
     }
-    if (strncmp(p, "mysql_db=", 9)==0)
+    if (strncasecmp(p, "mysql_db=", 9)==0)
     { strncpy(mysql_db, p+9, sizeof(mysql_db)-1);
       continue;
     }
-    if (strncmp(p, "mysql_socket=", 13)==0)
+    if (strncasecmp(p, "mysql_socket=", 13)==0)
     { strncpy(mysql_socket, p+13, sizeof(mysql_socket)-1);
       continue;
     }
-    if (strncmp(p, "mysql_table=", 12)==0)
+    if (strncasecmp(p, "mysql_table=", 12)==0)
     { strncpy(mysql_table, p+12, sizeof(mysql_table)-1);
       continue;
     }
-    if (strncmp(p, "mysql_utable=", 13)==0)
+    if (strncasecmp(p, "mysql_utable=", 13)==0)
     { strncpy(mysql_utable, p+13, sizeof(mysql_utable)-1);
       continue;
     }
 #endif
-    if (strncmp(p, "router=", 7)==0)
+    if (strncasecmp(p, "router=", 7)==0)
     {
       p+=7;
       freerouter(&cur_router);
@@ -282,7 +282,7 @@ int config(char *name)
     { if (strcmp(pl->name, str)==0)
         break;
     }
-    if (!pl && strcmp(str, "ignore"))
+    if (!pl && strcasecmp(str, "ignore"))
     { pl=calloc(1, sizeof(*pl));
       pl->next=linkhead;
       strcpy(pl->name, str);
@@ -308,23 +308,23 @@ int config(char *name)
     while (*p)
     { while (*p && isspace(*p)) p++;
       if (!*p) break;
-      if (strncmp(p, "reverse", 7)==0)
+      if (strncasecmp(p, "reverse", 7)==0)
       { pa->reverse=1;
       }
-      else if (strncmp(p, "fallthru", 8)==0)
+      else if (strncasecmp(p, "fallthru", 8)==0)
       { pa->fallthru=1;
       }
-      if (strncmp(p, "proto=", 6)==0)
+      if (strncasecmp(p, "proto=", 6)==0)
         pa->proto=atoi(p+6);
       else if (strncmp(p, "as=", 3)==0)
         pa->as=atoi(p+3);
-      else if (strncmp(p, "ifindex=", 8)==0)
+      else if (strncasecmp(p, "ifindex=", 8)==0)
         pa->iface=atoi(p+8);
-      else if (strncmp(p, "class=", 6)==0)
+      else if (strncasecmp(p, "class=", 6)==0)
         pa->class=atoi(p+6);
-      else if (strncmp(p, "nexthop=", 8)==0)
+      else if (strncasecmp(p, "nexthop=", 8)==0)
         pa->nexthop=inet_addr(p+8);
-      else if (strncmp(p, "ip=", 3)==0)
+      else if (strncasecmp(p, "ip=", 3)==0)
       { char c;
         p+=3;
         for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
@@ -347,7 +347,7 @@ int config(char *name)
                  ((char *)&masked)[1], ((char *)&masked)[0]);
         }
       }
-      else if (strncmp(p, "src=", 4)==0)
+      else if (strncasecmp(p, "src=", 4)==0)
       { char c, *p1;
         p+=4;
         if (*p=='!') pa->not=1, p++;
@@ -373,13 +373,13 @@ int config(char *name)
         }
       }
 #ifdef DO_SNMP
-      else if (strncmp(p, "ifname=", 7)==0)
+      else if (strncasecmp(p, "ifname=", 7)==0)
         pa->iface=get_ifindex(&cur_router, IFNAME, p+7);
-      else if (strncmp(p, "ifdescr=", 8)==0)
+      else if (strncasecmp(p, "ifdescr=", 8)==0)
         pa->iface=get_ifindex(&cur_router, IFDESCR, p+8);
-      else if (strncmp(p, "ifalias=", 8)==0)
+      else if (strncasecmp(p, "ifalias=", 8)==0)
         pa->iface=get_ifindex(&cur_router, IFDESCR, p+8);
-      else if (strncmp(p, "ifip=", 5)==0)
+      else if (strncasecmp(p, "ifip=", 5)==0)
         pa->iface=get_ifindex(&cur_router, IFIP, p+5);
 #endif
       while (*p && !isspace(*p)) p++;
@@ -472,11 +472,12 @@ static int snmpwalk(struct router_t *router)
   session.community = router->community;
   session.community_len = strlen(router->community);
   session.version = ds_get_int(DS_LIBRARY_ID, DS_LIB_SNMPVERSION);
-  debug(1, "Do snmpwalk %s %s", ipbuf, oid);
+  debug(1, "Do snmpwalk %s %s %s", ipbuf, router->community, oid);
   if ((ss = snmp_open(&session)) == NULL)
   { snmp_sess_perror("flowd", &session);
     return 1;
   }
+  debug(6, "snmp session opened");
   /* get first object to start walk */
   memmove(name, root, rootlen*sizeof(oid));
   namelen = rootlen;
@@ -498,6 +499,7 @@ static int snmpwalk(struct router_t *router)
               (memcmp(root, vars->name, rootlen * sizeof(oid))!=0)) {
             /* not part of this subtree */
             running = 0;
+            debug(6, "Not part of this subtree");
             continue;
           }
           if (nifaces%16==0)
@@ -518,6 +520,7 @@ static int snmpwalk(struct router_t *router)
               data[nifaces].val[sizeof(data->val)-1]='\0';
             data[nifaces++].ifindex=(unsigned short)vars->name_loc[vars->name_length-1];
           }
+          debug(6, "ifindex %u val '%s'", data[nifaces-1].ifindex, data[nifaces-1].val);
           varslen += vars->val_len+1;
           if ((vars->type != SNMP_ENDOFMIBVIEW) &&
               (vars->type != SNMP_NOSUCHOBJECT) &&
@@ -536,7 +539,8 @@ static int snmpwalk(struct router_t *router)
         if (response->errstat != SNMP_ERR_NOSUCHNAME) {
           fprintf(stderr, "Error in packet.\n");
           exitval = 2;
-        }
+        } else
+          debug(2, "snmpwalk successfully done");
       }
     } else if (status == STAT_TIMEOUT) {
       fprintf(stderr, "Timeout\n");
@@ -595,6 +599,7 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
     prouter->next=routers;
     routers=prouter;
     prouter->needupdate=1;
+    strncpy(prouter->community, router->community, sizeof(router->community)-1);
   }
   router=prouter;
   if (router->needupdate)
@@ -609,8 +614,8 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
     if ((i=strcmp(router->data[mid].val, val))==0)
     {
       debug(4, "ifindex for %s=%s at %s is %d", oid2str(oid), val, 
-            inet_ntoa(*(struct in_addr *)&router->addr), mid);
-      return mid;
+        inet_ntoa(*(struct in_addr *)&router->addr), router->data[mid].ifindex);
+      return router->data[mid].ifindex;
     }
     if (i>0) right=mid;
     else left=mid+1;
