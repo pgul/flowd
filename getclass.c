@@ -5,11 +5,14 @@
 #include <sys/shm.h>
 #include "flowd.h"
 
-static char *map;
+static classtype *map;
 static int shmid=-1;
 
-char getclass(unsigned long addr)
+classtype getclass(unsigned long addr)
 {
+#if NBITS>=8
+	return map[addr];
+#else
 	unsigned char bits, mask;
 	unsigned int offs = (unsigned int)(ntohl(addr));
 	offs >>= (32-MAXPREFIX);
@@ -17,6 +20,7 @@ char getclass(unsigned long addr)
 	mask = (0xff >> (8-NBITS))<<bits;
 	offs /= (8/NBITS);
 	return (map[offs] & mask) >> bits;;
+#endif
 }
 
 void freeshmem(void)

@@ -14,7 +14,6 @@
 #define SIGINFO SIGIO
 #endif
 
-static char *uaname[NCLASSES]={"world", "ua", "local", "undef"};
 extern long snap_traf;
 extern FILE *fsnap;
 
@@ -24,7 +23,7 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
 {
   u_long local=0, remote=0;
   int src_ua, dst_ua;
-  u_short remote_if, remote_as;
+  u_short remote_if, remote_as, remote_class, src_class, dst_class;
   struct attrtype *pa;
   sigset_t set, oset;
   u_long src_ip, dst_ip;
@@ -32,6 +31,8 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
   src_ip = ntohl(srcip);
   dst_ip = ntohl(dstip);
   flowsrc = ntohl(flowsrc);
+  src_class=find_mask(src_ip);
+  dst_class=find_mask(dst_ip);
   sigemptyset(&set);
   sigaddset(&set, SIGINFO);
   sigprocmask(SIG_BLOCK, &set, &oset);
@@ -41,17 +42,20 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
       remote=src_ip;
       remote_if=input;
       remote_as=src_as;
+      remote_class=src_class;
     } else
     { local=src_ip;
       remote=dst_ip;
       remote_if=output;
       remote_as=dst_as;
+      remote_class=dst_class;
     }
     if ((((flowsrc & pa->srcmask)==pa->src) == (pa->not==0)) &&
          (pa->ip==(u_long)-1      || (remote & pa->mask)==pa->ip) &&
          (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
          (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
          (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
+         (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
          (pa->proto==(u_short)-1  || pa->proto==proto))
     {
       if (!pa->link && !pa->fallthru)
@@ -62,7 +66,7 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
         ((in^pa->reverse) ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
-        pa->link->name, uaname[find_mask(src_ip)], uaname[find_mask(dst_ip)],
+        pa->link->name, uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output);
@@ -73,8 +77,8 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
       snap_traf=0;
     }
   }
-  src_ua=find_mask(src_ip);
-  dst_ua=find_mask(dst_ip);
+  src_ua=uaindex[src_ip];
+  dst_ua=uaindex[dst_ip];
   if ((pa->link->bytes[in^pa->reverse][src_ua][dst_ua]+=len)>=0xf0000000lu)
     write_stat();
   if (!pa->fallthru)

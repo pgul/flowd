@@ -96,7 +96,7 @@ int find_mask(unsigned long remote)
 
 #ifdef DEBUG
 time_t last_reload;
-char *uaname[]={"world","ua"};
+char *uaname[NCLASS][32]={"world","ua"};
 int main(int argc, char *argv[])
 {
   unsigned long addr;

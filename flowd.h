@@ -1,13 +1,12 @@
 #define CONFNAME	CONFDIR "/flowd.conf"
 #define MTU		2048
-#define PORT		1980
+#define PORT		741
 #define LOGNAME		LOGDIR "/flow"
 #define SNAPFILE	LOGDIR "/snap"
 #define ACLNAME		CONFDIR "/flowd.acl"
 #define PIDFILE		"/var/run/flowd.pid"
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)
-#define NCLASSES	4
 #define MAXMACS		(16*256) /* size of hash-table */
 #define MAXCOLOIP	16
 #define MAXPREFIX       24
@@ -15,6 +14,13 @@
 #define NBITS           2
 #define MAPSIZE         (1<<MAXPREFIX)/(8/NBITS)
 #define MAPKEY          (*(long *)"gul@")
+
+#if NBITS>8
+typedef unsigned short classtype;
+#else
+typedef unsigned char classtype;
+#endif
+#define NCLASSES	(1<<NBITS)
 
 struct linktype {
 	char name[32];
@@ -29,8 +35,7 @@ struct attrtype {
 	struct linktype *link;
 	struct attrtype *next;
 	int reverse, fallthru;
-	unsigned short iface, as;
-	unsigned short proto;
+	unsigned short iface, as, class, proto;
 };
 
 extern struct attrtype *attrhead;
@@ -43,6 +48,8 @@ extern int fromshmem;
 extern unsigned long bindaddr;
 extern unsigned short port;
 extern long mapkey;
+extern char uaname[NCLASSES][32];
+extern int  uaindex[NCLASSES];
 
 int  find_mask(unsigned long addr);
 int  reload_acl(void);
@@ -51,6 +58,6 @@ void add_stat(u_long flowsrc, u_long srcaddr, u_long dstaddr, int in,
               u_short src_as, u_short dst_as, u_short proto);
 void write_stat(void);
 int  config(char *name);
-char getclass(unsigned long addr);
+classtype getclass(unsigned long addr);
 int  init_map(void);
 void freeshmem(void);

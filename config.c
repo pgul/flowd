@@ -19,6 +19,8 @@ u_long bindaddr=INADDR_ANY;
 unsigned short port=PORT;
 long mapkey;
 int  fromshmem;
+char uaname[NCLASSES][32];
+int  uaindex[NCLASSES];
 
 int config(char *name)
 {
@@ -26,7 +28,8 @@ int config(char *name)
   struct linktype *pl;
   struct attrtype *pa, *attrtail;
   char str[256];
-  char *p;
+  char *p, *p1;
+  int i, j;
 
   if (fromshmem) freeshmem();
   fromshmem=0;
@@ -54,6 +57,10 @@ int config(char *name)
     attrhead=NULL;
   }
   attrtail=NULL;
+  for (i=0; i<NCLASSES; i++)
+  { uaindex[i]=i;
+    snprintf(uaname[i], sizeof(uaname[i])-1, "class%u_", i);
+  }
   while (fgets(str, sizeof(str), f))
   {
     p=strchr(str, '\n');
@@ -113,6 +120,30 @@ int config(char *name)
         fromshmem=1;
       continue;
     }
+    if (strncmp(p, "classes=", 8)==0)
+    {
+      p+=8;
+      i=0;
+      while (p && *p)
+      { 
+        if (++i==NCLASSES)
+        { fprintf(stderr, "Too many classes!\n");
+          break;
+        }
+        for (p1=p; *p1 && !isspace(*p1) && *p1!=','; p++);
+        if (*p1) *p1++='\0';
+        for (j=0; j<i; j++)
+          if (strcmp(uaname[i], uaname[j]) == 0)
+            break;
+        uaindex[i++]=j;
+        if (j<i)
+          uaname[i][0]='\0';
+        else
+          strncpy(uaname[i], p, sizeof(uaname[i])-1);
+        for (p=p1; *p && (isspace(*p) || *p==','); p++);
+      }
+      continue;
+    }
     for (p=str; *p && !isspace(*p); p++);
     if (*p) *p++='\0';
     if (strchr(str, '=')) continue; /* keyword */
@@ -159,7 +190,7 @@ int config(char *name)
       else if (strncmp(p, "nexthop=", 8)==0)
         pa->nexthop=inet_addr(p+8);
       else if (strncmp(p, "ip=", 3)==0)
-      { char c, *p1;
+      { char c;
         p+=3;
         for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
         c=*p1;
