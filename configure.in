@@ -1,0 +1,33 @@
+dnl $Id$
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(flowd.c)
+
+dnl Checks for programs.
+AC_PROG_CC
+
+CFLAGS=
+dnl Checks for header files.
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+
+dnl Checks for library functions.
+
+AC_CHECK_FUNCS(inet_addr)
+case x$ac_cv_func_inet_addr in
+  xno)
+    AC_MSG_CHECKING(for inet_addr in -lxnet)
+    OLD_LIBS=$LIBS
+    LIBS="$LIBS -lxnet"
+    AC_TRY_LINK([#include <arpa/inet.h>],[inet_addr("");],
+          AC_MSG_RESULT(yes), AC_MSG_RESULT(no); AC_ERROR(no inet_addr() found))
+    ;;
+esac
+
+dnl Set dirs
+logdir=/var/log/flow
+AC_ARG_WITH(logdir,
+     [  --with-logdir=path      log files directory (default /var/log/flow)],
+     [logdir=$withval],[])
+AC_DEFINE_UNQUOTED(LOGDIR, "$logdir")
+
+AC_OUTPUT(Makefile)

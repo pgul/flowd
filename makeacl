@@ -1,0 +1,13 @@
+#! /bin/sh
+if [ `ps cx | fgrep makeacl | wc -l` -gt 4 ]; then
+	echo already running
+	exit 0
+fi
+cd /home/gul/work/monitor
+
+#while [ -n "`rsh hobbit sh ip bgp community-list 13 2>&1 >newacl`" ];
+while [ -n "`rsh hobbit sh ip bgp 2>&1 >newacl`" ];
+do
+	sleep 1
+done
+mv newacl acl
