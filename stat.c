@@ -52,7 +52,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   sigaddset(&set, SIGINFO);
   sigprocmask(SIG_BLOCK, &set, &oset);
   for (pa=attrhead; pa; pa=pa->next)
-  { if (in^pa->reverse)
+  { if (in)
     { local=dst_ip;
       remote=src_ip;
       remote_if=input;
@@ -80,7 +80,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   if (fsnap && !pa->fallthru)
   { 
       fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s.%s2%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
-        ((in^pa->reverse) ? "<-" : "->"),
+        (in ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
         pa->link->name, uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
