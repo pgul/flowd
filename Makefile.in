@@ -24,7 +24,7 @@ test:		test.c
 
 install:	all
 	install flowd $(prefix)/bin
-	install flowd.conf @sysconfdir@
+	[ -f @sysconfdir@/flowd.conf ] || install flowd.conf @sysconfdir@
 
 clean:
 	rm -f *.o config.log config.cache config.status
