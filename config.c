@@ -577,9 +577,10 @@ static int snmpwalk(struct router_t *router)
 }
 
 unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
-                           const char *val)
+                           const char *s)
 {
   int left, right, mid, i;
+  char val[256], *p;
   struct router_t *prouter;
 
   if (router->addr==(u_long)-1)
@@ -606,6 +607,18 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
   { /* do snmpwalk for the oid */
     snmpwalk(router);
     router->needupdate=0;
+  }
+  /* copy value to val string */
+  if (*s == '\"')
+  { strncpy(val, s+1, sizeof(val));
+    val[sizeof(val)-1] = '\0';
+    if ((p=strchr(val, '\"')) != NULL)
+      *p='\0';
+  } else
+  { strncpy(val, s, sizeof(val));
+    val[sizeof(val)-1] = '\0';
+    for (p=val; *p && !isspace(*p); p++);
+    *p='\0';
   }
   /* find ifindex for given val */
   left=0; right=router->nifaces;
