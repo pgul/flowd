@@ -32,11 +32,11 @@
 extern long snap_traf;
 extern FILE *fsnap;
 
-void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
+void add_stat(u_long src, u_long srcip, u_long dstip, int in,
               u_long nexthop, u_long len, u_short input, u_short output,
               u_short src_as, u_short dst_as, u_short proto)
 {
-  u_long local=0, remote=0;
+  u_long local=0, remote=0, flowsrc;
   int src_ua, dst_ua;
   u_short remote_if, remote_as, remote_class, src_class, dst_class;
   struct attrtype *pa;
@@ -45,7 +45,7 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
 
   src_ip = ntohl(srcip);
   dst_ip = ntohl(dstip);
-  flowsrc = ntohl(flowsrc);
+  flowsrc = ntohl(src);
   src_class=find_mask(src_ip);
   dst_class=find_mask(dst_ip);
   sigemptyset(&set);
@@ -85,7 +85,7 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output,
-        ((char *)&flowsrc)[0], ((char *)&flowsrc)[1], ((char *)&flowsrc)[2], ((char *)&flowsrc)[3]);
+        *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3]);
     fflush(fsnap);
     if ((snap_traf-=len) <= 0)
     { fclose(fsnap);
