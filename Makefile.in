@@ -5,7 +5,7 @@ COPT=-Wall -funsigned-char @DEFS@ -DCONFDIR=\"@sysconfdir@\" @CFLAGS@
 all:	flowd
 
 flowd:	flowd.o acl.o stat.o config.o getclass.o
-	gcc $(COPT) -o flowd flowd.o acl.o stat.o config.o getclass.o @LIBS@
+	gcc $(COPT) @LDFLAGS@ -o flowd flowd.o acl.o stat.o config.o getclass.o @LIBS@
 flowd.o:	flowd.c flowd.h
 	gcc $(COPT) -o flowd.o -c flowd.c
 acl.o:		acl.c flowd.h

@@ -81,6 +81,54 @@ case x$do_perl in
    ;;
 esac
 
+dnl Check for MySQL
+AC_ARG_WITH(mysql,
+            [  --with-mysql            MySQL support (default no)],
+            do_mysql=yes, do_mysql=no)
+case x$do_mysql in
+  xyes)
+   AC_MSG_CHECKING(for mysql)
+   OLD_CFLAGS=$CFLAGS
+   OLD_LDFLAGS=$LDFLAGS
+   OLD_LIBS=$LIBS
+   CFLAGS="$CFLAGS -I /usr/local/include/mysql"
+   AC_TRY_COMPILE([#include <mysql.h>], [], mysql_ok=yes, mysql_ok=no)
+   case x$mysql_ok in
+     xno)
+      CFLAGS="$OLD_CFLAGS -I /usr/include/mysql"
+      AC_TRY_COMPILE([#include <mysql.h>], [], mysql_ok=yes, mysql_ok=no)
+      ;;
+   esac
+   case x$mysql_ok in
+     xyes)
+      LIBS="$LIBS -lmysqlclient"
+      LDFLAGS="$LDFLAGS -L /usr/local/lib/mysql"
+      AC_TRY_LINK([#include <mysql.h>], [mysql_init(0)],
+                  mysql_ok=yes, mysql_ok=no)
+      case x$mysql_ok in
+        xno)
+         LDFLAGS="$OLD_LDFLAGS -L /usr/lib/mysql"
+         AC_TRY_LINK([#include <mysql.h>], [mysql_init(0)],
+                     mysql_ok=yes, mysql_ok=no)
+        ;;
+      esac
+      ;;
+   esac
+   case x$mysql_ok in
+      xyes)
+       AC_DEFINE(DO_MYSQL)
+       AC_MSG_RESULT(yes)
+       ;;
+      xno)
+       CFLAGS=$OLD_CFLAGS
+       LDFLAGS=$OLD_LDFLAGS
+       LIBS=$OLD_LIBS
+       AC_MSG_RESULT(no)
+       ;;
+   esac
+   ;;
+esac
+
 dnl Set dirs
 logdir=/var/log/flow
 AC_ARG_WITH(logdir,

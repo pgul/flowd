@@ -31,6 +31,9 @@ typedef unsigned char classtype;
 
 struct linktype {
 	char name[32];
+#ifdef DO_MYSQL
+	unsigned long user_id;
+#endif
 	unsigned long bytes[2][NCLASSES][NCLASSES];
 	struct linktype *next;
 };
@@ -74,3 +77,12 @@ int  PerlStart(void);
 
 extern char perlfile[], perlstart[], perlwrite[], perlstop[];
 #endif
+#ifdef DO_MYSQL
+extern char mysql_user[256], mysql_pwd[256], mysql_host[256];
+extern char mysql_socket[256], mysql_db[256];
+extern char mysql_table[256], mysql_utable[256], mysql_mtable[256];
+extern char mysql_itable[256];
+extern unsigned mysql_port; 
+
+void mysql_start(void);
+#endif 

@@ -24,6 +24,12 @@ int  uaindex[NCLASSES];
 #ifdef DO_PERL
 char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
 #endif
+#ifdef DO_MYSQL
+char mysql_user[256], mysql_pwd[256], mysql_host[256];
+char mysql_socket[256], mysql_db[256];
+char mysql_table[256], mysql_utable[256];
+unsigned mysql_port;
+#endif
 
 int config(char *name)
 {
@@ -42,6 +48,14 @@ int config(char *name)
   strcpy(perlstart,    "startwrite");
   strcpy(perlwrite,    "write"     );
   strcpy(perlstop,     "stopwrite" );
+#endif
+#ifdef DO_MYSQL
+  mysql_user[0] = mysql_pwd[0] = mysql_host[0] = mysql_socket[0] = '\0';
+  strcpy(mysql_db, "flowd");
+  strcpy(mysql_table,  "traffic_%Y_%m");
+  strcpy(mysql_utable, "users");
+  mysql_port=0;
+  mysql_start();
 #endif
   f=fopen(name, "r");
   if (f==NULL)
@@ -165,6 +179,41 @@ int config(char *name)
       *p=0;
       strncpy(perlfile, p1, sizeof(perlfile));
       strncpy(perlwrite, p+2, sizeof(perlwrite));
+      continue;
+    }
+#endif
+#ifdef DO_MYSQL
+    if (strncmp(p, "mysql_user=", 11)==0)
+    { strncpy(mysql_user, p+11, sizeof(mysql_user)-1);
+      continue;
+    }
+    if (strncmp(p, "mysql_host=", 11)==0)
+    { strncpy(mysql_host, p+11, sizeof(mysql_host)-1);
+      p=strchr(mysql_host, ':');
+      if (p)
+      { mysql_port=atoi(p+1);
+        *p=0;
+      }
+      continue;
+    }
+    if (strncmp(p, "mysql_pwd=", 10)==0)
+    { strncpy(mysql_pwd, p+10, sizeof(mysql_pwd)-1);
+      continue;
+    }
+    if (strncmp(p, "mysql_db=", 9)==0)
+    { strncpy(mysql_db, p+9, sizeof(mysql_db)-1);
+      continue;
+    }
+    if (strncmp(p, "mysql_socket=", 13)==0)
+    { strncpy(mysql_socket, p+13, sizeof(mysql_socket)-1);
+      continue;
+    }
+    if (strncmp(p, "mysql_table=", 12)==0)
+    { strncpy(mysql_table, p+12, sizeof(mysql_table)-1);
+      continue;
+    }
+    if (strncmp(p, "mysql_utable=", 13)==0)
+    { strncpy(mysql_utable, p+13, sizeof(mysql_utable)-1);
       continue;
     }
 #endif
