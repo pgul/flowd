@@ -88,11 +88,15 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
         break; // ignore
   if (fsnap && !pa->fallthru)
   { 
-      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s.%s2%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
+      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s%s%s%s%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
         (in ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
-        pa->link->name, uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
+        pa->link->name,
+	(fromshmem || fromacl) ? "." : "",
+	uaname[uaindex[src_class]],
+	(fromshmem || fromacl) ? "2" : "",
+	uaname[uaindex[dst_class]],
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output,
@@ -394,7 +398,8 @@ void write_stat(void)
 #else
   for (i=0; i<NCLASSES; i++)
 #endif
-  { if (strncmp(uaname[i], "class", 5) == 0)
+  { if (!fromshmem && !fromacl) break;
+    if (strncmp(uaname[i], "class", 5) == 0)
       continue;
     if (p>enums)
     { strcpy(p, ", ");
@@ -526,8 +531,12 @@ void write_stat(void)
             }
             if (conn)
             { sprintf(query,
-                 "INSERT %s VALUES('%s', '%lu', '%s', '%s', '%s', '%lu')",
-                 table, stamp, pl->user_id, uaname[j], uaname[k],
+                 "INSERT %s VALUES('%s', '%lu%s%s%s%s', '%s', '%lu')",
+                 table, stamp, pl->user_id,
+		 (fromacl || fromshmem) ? "', '" : "",
+		 uaname[j],
+		 (fromacl || fromshmem) ? "', '" : "",
+		 uaname[k],
                  (i ? "in" : "out"), pl->bytes[i][j][k]);
               if (mysql_query(conn, query) != 0)
               { mysql_err(conn, "mysql_query() failed");
@@ -536,8 +545,12 @@ void write_stat(void)
               }
             }
 #endif
-            fprintf(fout, "%s.%s2%s.%s: %lu bytes\n",
-                    pl->name, uaname[j], uaname[k], (i ? "in" : "out"),
+            fprintf(fout, "%s%s%s%s%s.%s: %lu bytes\n",
+                    pl->name,
+		    (fromacl || fromshmem) ? "." : "",
+		    uaname[j],
+		    (fromacl || fromshmem) ? "2" : "",
+		    uaname[k], (i ? "in" : "out"),
                     pl->bytes[i][j][k]);
             pl->bytes[i][j][k]=0;
           }

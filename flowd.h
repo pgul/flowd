@@ -56,7 +56,7 @@ extern time_t last_write, last_reload;
 extern struct linktype *linkhead;
 extern char logname[], snapfile[], aclname[], pidfile[];
 extern int write_interval, reload_interval;
-extern int fromshmem, verbose;
+extern int fromshmem, fromacl, verbose;
 extern unsigned long bindaddr;
 extern unsigned short port;
 extern long mapkey;

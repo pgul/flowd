@@ -20,7 +20,7 @@ int  write_interval=WRITE_INTERVAL, reload_interval=RELOAD_INTERVAL;
 u_long bindaddr=INADDR_ANY;
 unsigned short port=PORT;
 long mapkey;
-int  fromshmem;
+int  fromshmem, fromacl;
 char uaname[NCLASSES][32];
 int  uaindex[NCLASSES];
 #ifdef DO_PERL
@@ -80,7 +80,7 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
   c=*p1;
   *p1='\0';
   if ((addr=inet_addr(p)) == -1) {
-    printf("Error: %s is not correct IP-address!\n", p);
+    fprintf(stderr, "Error: %s is not correct IP-address!\n", p);
     exit(2);
   }
   *ip = ntohl(addr);
@@ -89,13 +89,13 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
   *p1=c;
   if ((*ip & *mask) != *ip)
   { unsigned long masked = (*ip & *mask);
-    printf("Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
+    fprintf(stderr, "Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
            ((char *)ip)[3], ((char *)ip)[2],
            ((char *)ip)[1], ((char *)ip)[0],
            atoi(p+1),
            ((char *)mask)[3], ((char *)mask)[2],
            ((char *)mask)[1], ((char *)mask)[0]);
-    printf("ip & mask is %u.%u.%u.%u\n",
+    fprintf(stderr, "ip & mask is %u.%u.%u.%u\n",
            ((char *)&masked)[3], ((char *)&masked)[2],
            ((char *)&masked)[1], ((char *)&masked)[0]);
   }
@@ -113,7 +113,7 @@ static void read_port(char *p, u_short *port, u_short proto)
       if ((pe=getprotobynumber(proto)) != NULL)
         sproto=pe->p_name;
     if ((se=getservbyname(p, sproto)) == NULL)
-      printf("Unknown port %s\n", p);
+      fprintf(stderr, "Unknown port %s\n", p);
     else
       *port=ntohs(se->s_port);
   }
@@ -155,7 +155,7 @@ static void read_proto(char *p, u_short *proto)
     *p1='\0';
     pe=getprotobyname(p);
     if (pe==NULL)
-      printf("Unknown protocol %s\n", p);
+      fprintf(stderr, "Unknown protocol %s\n", p);
     else
       *proto=pe->p_proto;
     *p1=c;
@@ -253,6 +253,7 @@ int config(char *name)
     }
     if (strncasecmp(p, "acl=", 4)==0)
     { strncpy(aclname, p+4, sizeof(aclname)-1);
+      fromacl=1;
       continue;
     }
     if (strncasecmp(p, "pid=", 4)==0)
@@ -320,7 +321,7 @@ int config(char *name)
     { char *p1 = p+10;
       p=strstr(p1, "::");
       if (p==NULL)
-      { printf("Incorrect perlwrite=%s ignored!", p1);
+      { fprintf(stderr, "Incorrect perlwrite=%s ignored!", p1);
         continue;
       }
       *p=0;
@@ -381,7 +382,7 @@ int config(char *name)
       { if (strcmp(p, "any")==0)
           cur_router.addr=(u_long)-1;
         else
-          printf("Warning: Router %s not found\n", p);
+          fprintf(stderr, "Warning: Router %s not found\n", p);
         continue;
       }
       /* use only first address */
@@ -473,10 +474,17 @@ int config(char *name)
   fclose(f);
   if (fromshmem)
   { if (init_map())
-    { printf("Can't init shared memory: %s\n", strerror(errno));
+    { fprintf(stderr, "Can't init shared memory: %s\n", strerror(errno));
       return 1;
     }
   }
+  if (access(aclname, R_OK))
+    fromacl=1;
+  else if (fromacl)
+  { fprintf(stderr, "Can't read acl %d!\n", aclname);
+    return 1;
+  } else
+    uaname[0][0]='\0';
   freerouter(&cur_router);
 #ifdef DO_PERL
   exitperl();
@@ -487,6 +495,13 @@ int config(char *name)
 
 #ifdef DO_SNMP
 /* find ifindex by snmp param */
+#ifdef NET_SNMP
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#define ds_get_int(a, b)   netsnmp_ds_get_int(a, b)
+#define DS_LIBRARY_ID      NETSNMP_DS_LIBRARY_ID
+#define DS_LIB_SNMPVERSION NETSNMP_DS_LIB_SNMPVERSION
+#else
 #include <ucd-snmp/ucd-snmp-config.h>
 #include <ucd-snmp/asn1.h>
 #include <ucd-snmp/snmp.h>
@@ -497,6 +512,7 @@ int config(char *name)
 #include <ucd-snmp/mib.h>
 #include <ucd-snmp/system.h>
 #include <ucd-snmp/default_store.h>
+#endif
 
 static char *oid2str(enum ifoid_t oid)
 {

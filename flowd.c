@@ -19,7 +19,7 @@
 int  sockfd, verbose;
 time_t last_write, last_reload;
 long snap_traf;
-FILE *fsnap, *origerr;
+FILE *fsnap;
 char *saved_argv[20];
 char *confname;
 
@@ -66,7 +66,7 @@ void hup(int signo)
     reload_acl();
   if (signo==SIGUSR2)
     if (config(confname))
-    { fprintf(origerr, "Config error!\n");
+    { fprintf(stderr, "Config error!\n");
       exit(1);
     }
   if (signo==SIGINFO)
@@ -182,8 +182,8 @@ int main(int argc, char *argv[])
   signal(SIGTERM, hup);
   signal(SIGINFO, hup);
   if (reload_acl())
-  { fprintf(origerr, "reload acl error!\n");
-    return 1;
+  { fprintf(stderr, "reload acl error!\n");
+    /* return 1; */
   }
   if (daemonize && !verbose) daemon(0, 0);
   f=fopen(pidfile, "w");
