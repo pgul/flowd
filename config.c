@@ -62,7 +62,7 @@ int config(char *name)
   char *p, *p1;
   int i, j;
   struct hostent *he;
-  struct router_t cur_router, *prouter;
+  struct router_t cur_router;
 
   if (fromshmem) freeshmem();
   fromshmem=0;
@@ -110,8 +110,10 @@ int config(char *name)
   }
   cur_router.addr=(u_long)-1;
 #ifdef DO_SNMP
-  for (prouter=routers; prouter; prouter=prouter->next)
-  { prouter->needupdate=1;
+  { struct router_t *prouter;
+    for (prouter=routers; prouter; prouter=prouter->next)
+    { prouter->needupdate=1;
+    }
   }
 #endif
   while (fgets(str, sizeof(str), f))
