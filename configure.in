@@ -27,7 +27,11 @@ dnl Set dirs
 logdir=/var/log/flow
 AC_ARG_WITH(logdir,
      [  --with-logdir=path      log files directory (default /var/log/flow)],
-     [logdir=$withval],[])
+     [logdir=$withval], [])
 AC_DEFINE_UNQUOTED(LOGDIR, "$logdir")
+
+AC_ARG_WITH(debug,
+     [  --with-debug            generate debug info],
+     [CFLAGS="$CFLAGS -g"], [CFLAGS="$CFLAGS -O3"])
 
 AC_OUTPUT(Makefile)

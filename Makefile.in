@@ -1,6 +1,6 @@
 
 prefix=@prefix@
-COPT=-Wall -O3 -funsigned-char @DEFS@ -DCONFDIR=\"@sysconfdir@\" @CFLAGS@
+COPT=-Wall -funsigned-char @DEFS@ -DCONFDIR=\"@sysconfdir@\" @CFLAGS@
 
 all:	flowd
 
