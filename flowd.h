@@ -68,3 +68,9 @@ int  config(char *name);
 classtype getclass(unsigned long addr);
 int  init_map(void);
 void freeshmem(void);
+#ifdef DO_PERL
+void exitperl(void);
+int  PerlStart(void);
+
+extern char perlfile[], perlstart[], perlwrite[], perlstop[];
+#endif

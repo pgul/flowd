@@ -8,6 +8,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#ifdef DO_PERL
+#include <EXTERN.h>
+#include <perl.h>
+#include <XSUB.h>
+#ifndef sv_undef
+#define sv_undef PL_sv_undef
+#endif
+#endif
 #include "flowd.h"
 
 #ifndef SIGINFO
@@ -88,6 +96,127 @@ void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
   sigprocmask(SIG_SETMASK, &oset, NULL);
 }
 
+#ifdef DO_PERL
+static PerlInterpreter *perl = NULL;
+
+void boot_DynaLoader(CV *cv);
+
+static void xs_init(void)
+{
+  static char *file = __FILE__;
+  dXSUB_SYS;
+  newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+} 
+
+void exitperl(void)
+{ 
+  if (perl)
+  { 
+    perl_destruct(perl);
+    perl_free(perl);
+    perl=NULL;
+  }
+}
+
+int PerlStart(void)
+{
+  int rc;
+  char *perlargs[]={"", "", NULL};
+
+  perlargs[1] = perlfile;
+  if (access(perlfile, R_OK))
+  { printf("Can't read %s: %s", perlfile, strerror(errno));
+    return 1;
+  }
+  perl = perl_alloc();
+  perl_construct(perl);
+  rc=perl_parse(perl, xs_init, 2, perlargs, NULL);
+  if (rc)
+  { printf("Can't parse %s", perlfile);
+    perl_destruct(perl);
+    perl_free(perl);
+    perl=NULL;
+    return 1;
+  }
+  atexit(exitperl);
+  return 0;
+}
+
+static void plstart(void)
+{
+  STRLEN n_a;
+
+  dSP;
+  ENTER;
+  SAVETMPS;
+  PUSHMARK(SP);
+  PUTBACK;
+  perl_call_pv(perlstart, G_EVAL|G_SCALAR);
+  SPAGAIN;
+  PUTBACK;
+  FREETMPS;
+  LEAVE;
+  if (SvTRUE(ERRSV))
+  {
+    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
+    exit(4);
+  }
+}
+
+static void plstop(void)
+{
+  STRLEN n_a;
+
+  dSP;
+  ENTER;
+  SAVETMPS;
+  PUSHMARK(SP);
+  PUTBACK;
+  perl_call_pv(perlstop, G_EVAL|G_SCALAR);
+  SPAGAIN;
+  PUTBACK;
+  FREETMPS;
+  LEAVE;
+  if (SvTRUE(ERRSV))
+  {
+    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
+    exit(4);
+  }
+}
+
+static void plwrite(char *user, char *src, char *dst, char *direct, int bytes)
+{
+  SV *svuser, *svsrc, *svdst, *svdirect, *svbytes;
+  STRLEN n_a;
+
+  dSP;
+  svuser   = perl_get_sv("user",      TRUE);
+  svsrc    = perl_get_sv("src",       TRUE);
+  svdst    = perl_get_sv("dst",       TRUE);
+  svdirect = perl_get_sv("direction", TRUE);
+  svbytes  = perl_get_sv("bytes",     TRUE);
+  sv_setpv(svuser,   user  );
+  sv_setpv(svsrc,    src   );
+  sv_setpv(svdst,    dst   );
+  sv_setpv(svdirect, direct);
+  sv_setiv(svbytes,  bytes );
+  ENTER;
+  SAVETMPS;
+  PUSHMARK(SP);
+  PUTBACK;
+  perl_call_pv(perlwrite, G_EVAL|G_SCALAR);
+  SPAGAIN;
+  PUTBACK;
+  FREETMPS;
+  LEAVE;
+  if (SvTRUE(ERRSV))
+  {
+    printf("Perl eval error: %s\n", SvPV(ERRSV, n_a));
+    exit(4);
+  }
+}
+#endif
+
 void write_stat(void)
 {
   int i, j, k;
@@ -97,6 +226,9 @@ void write_stat(void)
   last_write=time(NULL);
   fout = fopen(logname, "a");
   if (fout==NULL) return;
+#ifdef DO_PERL
+  plstart();
+#endif
   fprintf(fout, "----- %s", ctime(&last_write));
   for (pl=linkhead; pl; pl=pl->next)
   { for (i=0; i<2; i++)
@@ -104,12 +236,19 @@ void write_stat(void)
         for (k=0; k<NCLASSES; k++)
           if (pl->bytes[i][j][k])
           { 
-              fprintf(fout, "%s.%s2%s.%s: %lu bytes\n",
-                      pl->name, uaname[j], uaname[k], (i ? "in" : "out"),
-                      pl->bytes[i][j][k]);
-              pl->bytes[i][j][k]=0;
+#ifdef DO_PERL
+            plwrite(pl->name, uaname[j], uaname[k], (i ? "in" : "out"),
+                    pl->bytes[i][j][k]);
+#endif
+            fprintf(fout, "%s.%s2%s.%s: %lu bytes\n",
+                    pl->name, uaname[j], uaname[k], (i ? "in" : "out"),
+                    pl->bytes[i][j][k]);
+            pl->bytes[i][j][k]=0;
           }
   }
   fputs("\n", fout);
   fclose(fout);
+#ifdef DO_PERL
+  plstop();
+#endif
 }

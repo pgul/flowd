@@ -21,6 +21,9 @@ long mapkey;
 int  fromshmem;
 char uaname[NCLASSES][32];
 int  uaindex[NCLASSES];
+#ifdef DO_PERL
+char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
+#endif
 
 int config(char *name)
 {
@@ -34,6 +37,12 @@ int config(char *name)
   if (fromshmem) freeshmem();
   fromshmem=0;
   mapkey=MAPKEY;
+#ifdef DO_PERL
+  strcpy(perlfile,     "flowd.pl");
+  strcpy(perlstart,    "startwrite");
+  strcpy(perlwrite,    "write"     );
+  strcpy(perlstop,     "stopwrite" );
+#endif
   f=fopen(name, "r");
   if (f==NULL)
   { fprintf(stderr, "Can't open %s: %s!\n", name, strerror(errno));
@@ -145,6 +154,20 @@ int config(char *name)
       }
       continue;
     }
+#ifdef DO_PERL
+    if (strncmp(p, "perlwrite=", 10)==0)
+    { char *p1 = p+10;
+      p=strstr(p1, "::");
+      if (p==NULL)
+      { printf("Incorrect perlwrite=%s ignored!", p1);
+        continue;
+      }
+      *p=0;
+      strncpy(perlfile, p1, sizeof(perlfile));
+      strncpy(perlwrite, p+2, sizeof(perlwrite));
+      continue;
+    }
+#endif
     for (p=str; *p && !isspace(*p); p++);
     if (*p) *p++='\0';
     if (strchr(str, '=')) continue; /* keyword */
@@ -251,6 +274,10 @@ int config(char *name)
       return 1;
     }
   }
+#ifdef DO_PERL
+  exitperl();
+  PerlStart();
+#endif
   return 0;
 }
 
