@@ -364,13 +364,13 @@ int config(char *name)
         read_ip(p+7, &pa->remote, &pa->remotemask);
 #ifdef DO_SNMP
       else if (strncasecmp(p, "ifname=", 7)==0)
-        pa->iface=get_ifindex(&cur_router, IFNAME, p+7);
+        pa->iface=get_ifindex(&cur_router, IFNAME, &p);
       else if (strncasecmp(p, "ifdescr=", 8)==0)
-        pa->iface=get_ifindex(&cur_router, IFDESCR, p+8);
+        pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
       else if (strncasecmp(p, "ifalias=", 8)==0)
-        pa->iface=get_ifindex(&cur_router, IFDESCR, p+8);
+        pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
       else if (strncasecmp(p, "ifip=", 5)==0)
-        pa->iface=get_ifindex(&cur_router, IFIP, p+5);
+        pa->iface=get_ifindex(&cur_router, IFIP, &p);
 #endif
       while (*p && !isspace(*p)) p++;
     }
@@ -564,8 +564,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   return 0;
 }
 
-unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
-                           const char *s)
+unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
 {
   int left, right, mid, i;
   char val[256], *p;
@@ -575,6 +574,11 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
   { printf("Warning: Router not specified for %s\n", oid2str(oid));
     return (unsigned short)-2; /* not matched for any interface */
   }
+  if ((p=strchr(*s, '=')) == NULL)
+  { printf("Internal error\n");
+    exit(2);
+  }
+  *s = p+1;
   /* search this router/oid */
   for (prouter=routers; prouter; prouter=prouter->next)
   { if (prouter->addr==router->addr)
@@ -593,13 +597,15 @@ unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid,
     /* do snmpwalk for the oid */
     snmpwalk(router, oid);
   /* copy value to val string */
-  if (*s == '\"')
-  { strncpy(val, s+1, sizeof(val));
+  if (**s == '\"')
+  { strncpy(val, *s+1, sizeof(val));
     val[sizeof(val)-1] = '\0';
     if ((p=strchr(val, '\"')) != NULL)
       *p='\0';
+    if ((p=strchr(*s, '\"')) != NULL)
+      *s=p+1;
   } else
-  { strncpy(val, s, sizeof(val));
+  { strncpy(val, *s, sizeof(val));
     val[sizeof(val)-1] = '\0';
     for (p=val; *p && !isspace(*p); p++);
     *p='\0';

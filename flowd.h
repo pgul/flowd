@@ -109,6 +109,6 @@ void mysql_start(void);
 #endif 
 
 #ifdef DO_SNMP
-unsigned short get_ifindex(struct router_t*, enum ifoid_t, const char*);
+unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
 #endif
 
