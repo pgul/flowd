@@ -7,7 +7,7 @@
 #define PIDFILE		"/var/run/flowd.pid"
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)
-#define NCLASSES	2
+#define NCLASSES	4
 #define MAXMACS		(16*256) /* size of hash-table */
 #define MAXCOLOIP	16
 #define MAXPREFIX       24

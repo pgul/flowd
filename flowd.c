@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
   { printf("socket: %s\n", strerror(errno));
     return 1;
   }
+  memset(&my_addr, 0, sizeof(my_addr));
   my_addr.sin_family = AF_INET;
   my_addr.sin_addr.s_addr = bindaddr;
   my_addr.sin_port = htons(port);
@@ -122,7 +123,9 @@ int main(int argc, char *argv[])
     fclose(f);
   }
 
-  while ((i=sizeof(remote_addr), n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &i)) != -1)
+  while ((i=sizeof(remote_addr),
+          memset(&remote_addr, 0, sizeof(remote_addr)),
+          n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &i)) != -1)
   {
     if (n==0) continue;
     ver = ntohs(*(short int *)buf);

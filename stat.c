@@ -14,11 +14,11 @@
 #define SIGINFO SIGIO
 #endif
 
-static char *uaname[NCLASSES]={"world", "ua"};
+static char *uaname[NCLASSES]={"world", "ua", "local", "undef"};
 extern long snap_traf;
 extern FILE *fsnap;
 
-void add_stat(u_long flowsrc, u_long src_ip, u_long dst_ip, int in,
+void add_stat(u_long flowsrc, u_long srcip, u_long dstip, int in,
               u_long nexthop, u_long len, u_short input, u_short output,
               u_short src_as, u_short dst_as, u_short proto)
 {
@@ -27,9 +27,10 @@ void add_stat(u_long flowsrc, u_long src_ip, u_long dst_ip, int in,
   u_short remote_if, remote_as;
   struct attrtype *pa;
   sigset_t set, oset;
+  u_long src_ip, dst_ip;
 
-  src_ip = ntohl(src_ip);
-  dst_ip = ntohl(dst_ip);
+  src_ip = ntohl(srcip);
+  dst_ip = ntohl(dstip);
   flowsrc = ntohl(flowsrc);
   sigemptyset(&set);
   sigaddset(&set, SIGINFO);
@@ -57,12 +58,14 @@ void add_stat(u_long flowsrc, u_long src_ip, u_long dst_ip, int in,
         break; // ignore
   if (fsnap && !pa->fallthru)
   { 
-      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s.%s2%s.%s) %lu bytes\n",
+      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s.%s2%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u\n",
         ((in^pa->reverse) ? "<-" : "->"),
-        ((char *)&src_ip)[3], ((char *)&src_ip)[2], ((char *)&src_ip)[1], ((char *)&src_ip)[0],
-        ((char *)&dst_ip)[3], ((char *)&dst_ip)[2], ((char *)&dst_ip)[1], ((char *)&dst_ip)[0],
+        ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
+        ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
         pa->link->name, uaname[find_mask(src_ip)], uaname[find_mask(dst_ip)],
-        ((in^pa->reverse) ? "in" : "out"), len);
+        ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
+        ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
+        input, output);
     fflush(fsnap);
     if ((snap_traf-=len) <= 0)
     { fclose(fsnap);

@@ -133,7 +133,7 @@ int config(char *name)
     pa->link = pl;
     pa->next = NULL;
     pa->reverse=pa->fallthru=0;
-    pa->srcmask=0;
+    pa->src=pa->srcmask=0;
     pa->not=0;
     if (attrhead==NULL)
       attrhead = pa;
@@ -184,11 +184,12 @@ int config(char *name)
       else if (strncmp(p, "src=", 4)==0)
       { char c, *p1;
         p+=4;
-        if (*p=='!') pa->not=1;
+        if (*p=='!') pa->not=1, p++;
         for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
         c=*p1;
         *p1='\0';
         pa->src = ntohl(inet_addr(p));
+        pa->srcmask = 0xfffffffful;
         if (c=='/')
           pa->srcmask<<=(32-atoi(p1+1));
         *p1=c; p=p1;
