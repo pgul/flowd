@@ -40,11 +40,12 @@ struct linktype {
 
 struct attrtype {
 	u_long ip, mask;
+	u_long remote, remotemask;
 	u_long nexthop;
 	u_long src, srcmask, not;
 	struct linktype *link;
 	struct attrtype *next;
-	int reverse, fallthru;
+	int reverse, fallthru, in;
 	unsigned short iface, as, class, proto;
 	u_long router;
 };

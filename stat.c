@@ -67,6 +67,8 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
     }
     if ((((flowsrc & pa->srcmask)==pa->src) == (pa->not==0)) &&
          (pa->ip==(u_long)-1      || (remote & pa->mask)==pa->ip) &&
+         (pa->remote==(u_long)-1  || (local  & pa->remotemask)==pa->remote) &&
+         (pa->in==-1              || pa->in==(in^pa->reverse)) &&
          (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
          (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
          (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&

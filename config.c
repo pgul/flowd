@@ -53,6 +53,31 @@ static void freerouter(struct router_t *router)
   router->addr = (u_long)-1;
 }
 
+static void read_ip(char *p, u_long *ip, u_long *mask)
+{
+  char c, *p1;
+
+  for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
+  c=*p1;
+  *p1='\0';
+  *ip = ntohl(inet_addr(p));
+  if (c=='/')
+    *mask<<=(32-atoi(p1+1));
+  *p1=c;
+  if ((*ip & *mask) != *ip)
+  { unsigned long masked = (*ip & *mask);
+    printf("Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
+           ((char *)ip)[3], ((char *)ip)[2],
+           ((char *)ip)[1], ((char *)ip)[0],
+           atoi(p+1),
+           ((char *)mask)[3], ((char *)mask)[2],
+           ((char *)mask)[1], ((char *)mask)[0]);
+    printf("ip & mask is %u.%u.%u.%u\n",
+           ((char *)&masked)[3], ((char *)&masked)[2],
+           ((char *)&masked)[1], ((char *)&masked)[0]);
+  }
+}
+
 int config(char *name)
 {
   FILE *f;
@@ -312,9 +337,12 @@ int config(char *name)
       { pa->reverse=1;
       }
       else if (strncasecmp(p, "fallthru", 8)==0)
-      { pa->fallthru=1;
-      }
-      if (strncasecmp(p, "proto=", 6)==0)
+        pa->fallthru=1;
+      else if (strncasecmp(p, "in", 2)==0)
+        pa->in=1;
+      else if (strncasecmp(p, "out", 3)==0)
+        pa->in=0;
+      else if (strncasecmp(p, "proto=", 6)==0)
         pa->proto=atoi(p+6);
       else if (strncmp(p, "as=", 3)==0)
         pa->as=atoi(p+3);
@@ -325,53 +353,11 @@ int config(char *name)
       else if (strncasecmp(p, "nexthop=", 8)==0)
         pa->nexthop=inet_addr(p+8);
       else if (strncasecmp(p, "ip=", 3)==0)
-      { char c;
-        p+=3;
-        for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
-        c=*p1;
-        *p1='\0';
-        pa->ip = ntohl(inet_addr(p));
-        if (c=='/')
-          pa->mask<<=(32-atoi(p1+1));
-        *p1=c; p=p1;
-        if ((pa->ip & pa->mask) != pa->ip)
-        { unsigned long masked = (pa->ip & pa->mask);
-          printf("Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
-                 ((char *)&(pa->ip))[3], ((char *)&(pa->ip))[2],
-                 ((char *)&(pa->ip))[1], ((char *)&(pa->ip))[0],
-                 atoi(p+1),
-                 ((char *)&(pa->mask))[3], ((char *)&(pa->mask))[2],
-                 ((char *)&(pa->mask))[1], ((char *)&(pa->mask))[0]);
-          printf("ip & mask is %u.%u.%u.%u\n",
-                 ((char *)&masked)[3], ((char *)&masked)[2],
-                 ((char *)&masked)[1], ((char *)&masked)[0]);
-        }
-      }
+        read_ip(p+3, &pa->ip, &pa->mask);
       else if (strncasecmp(p, "src=", 4)==0)
-      { char c, *p1;
-        p+=4;
-        if (*p=='!') pa->not=1, p++;
-        for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
-        c=*p1;
-        *p1='\0';
-        pa->src = ntohl(inet_addr(p));
-        pa->srcmask = 0xfffffffful;
-        if (c=='/')
-          pa->srcmask<<=(32-atoi(p1+1));
-        *p1=c; p=p1;
-        if ((pa->src & pa->srcmask) != pa->src)
-        { unsigned long masked = (pa->src & pa->srcmask);
-          printf("Warning: %u.%u.%u.%u inconsistent with /%d (mask %u.%u.%u.%u)!\n",
-                 ((char *)&(pa->src))[3], ((char *)&(pa->src))[2],
-                 ((char *)&(pa->src))[1], ((char *)&(pa->src))[0],
-                 atoi(p+1),
-                 ((char *)&(pa->srcmask))[3], ((char *)&(pa->srcmask))[2],
-                 ((char *)&(pa->srcmask))[1], ((char *)&(pa->srcmask))[0]);
-          printf("ip & mask is %u.%u.%u.%u\n",
-                 ((char *)&masked)[3], ((char *)&masked)[2],
-                 ((char *)&masked)[1], ((char *)&masked)[0]);
-        }
-      }
+        read_ip(p+3, &pa->src, &pa->srcmask);
+      else if (strncasecmp(p, "remote=", 4)==0)
+        read_ip(p+3, &pa->remote, &pa->remotemask);
 #ifdef DO_SNMP
       else if (strncasecmp(p, "ifname=", 7)==0)
         pa->iface=get_ifindex(&cur_router, IFNAME, p+7);
