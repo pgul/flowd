@@ -34,11 +34,13 @@ extern FILE *fsnap;
 
 void add_stat(u_long src, u_long srcip, u_long dstip, int in,
               u_long nexthop, u_long len, u_short input, u_short output,
-              u_short src_as, u_short dst_as, u_short proto)
+              u_short src_as, u_short dst_as, u_short proto,
+              u_short srcport, u_short dstport)
 {
   u_long local=0, remote=0, flowsrc;
   int src_ua, dst_ua;
   u_short remote_if, remote_as, remote_class, src_class, dst_class;
+  u_short lport, rport;
   struct attrtype *pa;
   sigset_t set, oset;
   u_long src_ip, dst_ip;
@@ -58,12 +60,16 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
       remote_if=input;
       remote_as=src_as;
       remote_class=src_class;
+      lport=ntohs(dstport);
+      rport=ntohs(srcport);
     } else
     { local=src_ip;
       remote=dst_ip;
       remote_if=output;
       remote_as=dst_as;
       remote_class=dst_class;
+      lport=ntohs(srcport);
+      rport=ntohs(dstport);
     }
     if ((((flowsrc & pa->srcmask)==pa->src) == (pa->not==0)) &&
          (pa->ip==(u_long)-1      || (remote & pa->mask)==pa->ip) &&
@@ -73,7 +79,10 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
          (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
          (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
          (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
-         (pa->proto==(u_short)-1  || pa->proto==proto))
+         (pa->proto==(u_short)-1  || pa->proto==proto) &&
+         (pa->port1==(u_short)-1  || (pa->port1<=lport && pa->port2>=lport)) &&
+         (pa->lport1==(u_short)-1 || (pa->lport1<=rport && pa->lport2>=rport))
+	)
     {
       if (!pa->link && !pa->fallthru)
         break; // ignore

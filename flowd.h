@@ -47,6 +47,7 @@ struct attrtype {
 	struct attrtype *next;
 	int reverse, fallthru, in;
 	unsigned short iface, as, class, proto;
+	unsigned short port1, port2, lport1, lport2;
 	u_long router;
 };
 
@@ -66,7 +67,8 @@ int  find_mask(unsigned long addr);
 int  reload_acl(void);
 void add_stat(u_long flowsrc, u_long srcaddr, u_long dstaddr, int in,
               u_long nexthop, u_long bytes, u_short input, u_short output,
-              u_short src_as, u_short dst_as, u_short proto);
+              u_short src_as, u_short dst_as, u_short proto,
+              u_short srcport, u_short dstport);
 void write_stat(void);
 int  config(char *name);
 classtype getclass(unsigned long addr);

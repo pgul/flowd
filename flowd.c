@@ -226,9 +226,11 @@ int main(int argc, char *argv[])
         input=ntohs(data1[i].input);
         output=ntohs(data1[i].output);
         add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
-                 1, 0, bytes, input, output, 0, 0, data1[i].prot);
+                 1, 0, bytes, input, output, 0, 0, data1[i].prot,
+		 data1[i].srcport, data1[i].dstport);
         add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
-                 0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot);
+                 0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot,
+		 data1[i].srcport, data1[i].dstport);
       }
     }
     else if (ver==5)
@@ -267,10 +269,11 @@ int main(int argc, char *argv[])
         src_as=ntohs(data5[i].src_as);
         dst_as=ntohs(data5[i].dst_as);
         add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
-                 1, 0, bytes, input, output, src_as, dst_as, data5[i].prot);
+                 1, 0, bytes, input, output, src_as, dst_as, data5[i].prot,
+		 data5[i].srcport, data5[i].dstport);
         add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
                  0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
-                 data5[i].prot);
+                 data5[i].prot, data5[i].srcport, data5[i].dstport);
       }
     }
     else

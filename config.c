@@ -101,6 +101,67 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
   }
 }
 
+static void read_port(char *p, u_short *port, u_short proto)
+{
+  if (isdigit(*p))
+    *port=atoi(p);
+  else
+  { struct servent *se;
+    struct protoent *pe;
+    char *sproto=NULL;
+    if (proto!=(u_short)-1)
+      if ((pe=getprotobynumber(proto)) != NULL)
+        sproto=pe->p_name;
+    if ((se=getservbyname(p, sproto)) == NULL)
+      printf("Unknown port %s\n", p);
+    else
+      *port=ntohs(se->s_port);
+  }
+}
+
+static void read_ports(char *p, u_short *pl, u_short *pg, u_short proto)
+{
+  char c, *p1;
+
+  for (p1=p; *p1 && !isspace(*p1) && *p1!=':'; p1++);
+  c=*p1;
+  *p1='\0';
+  read_port(p, pl, proto);
+  *p1=c;
+  if (c!=':' || *pl==(u_short)-1)
+  { *pg=*pl;
+    return;
+  }
+  p=p1+1;
+  for (p1=p; *p1 && !isspace(*p1); p1++);
+  c=*p1;
+  *p1='\0';
+  read_port(p, pg, proto);
+  *p1=c;
+  if (*pg==(u_short)-1)
+    *pg=*pl;
+}
+
+static void read_proto(char *p, u_short *proto)
+{
+  if (isdigit(*p))
+    *proto=atoi(p);
+  else
+  {
+    struct protoent *pe;
+    char c, *p1;
+    for (p1=p; *p1 && !isspace(*p1); p1++);
+    c=*p1;
+    *p1='\0';
+    pe=getprotobyname(p);
+    if (pe==NULL)
+      printf("Unknown protocol %s\n", p);
+    else
+      *proto=pe->p_proto;
+    *p1=c;
+  }
+}
+
 int config(char *name)
 {
   FILE *f;
@@ -371,7 +432,7 @@ int config(char *name)
       else if (strncasecmp(p, "out", 3)==0)
         pa->in=0;
       else if (strncasecmp(p, "proto=", 6)==0)
-        pa->proto=atoi(p+6);
+        read_proto(p+6, &pa->proto);
       else if (strncmp(p, "as=", 3)==0)
         pa->as=atoi(p+3);
       else if (strncasecmp(p, "ifindex=", 8)==0)
@@ -382,6 +443,12 @@ int config(char *name)
         pa->nexthop=inet_addr(p+8);
       else if (strncasecmp(p, "ip=", 3)==0)
         read_ip(p+3, &pa->ip, &pa->mask);
+      else if (strncasecmp(p, "remote=", 7)==0)
+        read_ip(p+7, &pa->remote, &pa->remotemask);
+      else if (strncasecmp(p, "port=", 5)==0)
+        read_ports(p+5, &pa->port1, &pa->port2, pa->proto);
+      else if (strncasecmp(p, "localport=", 5)==0)
+        read_ports(p+5, &pa->lport1, &pa->lport2, pa->proto);
       else if (strncasecmp(p, "src=", 4)==0)
       { p+=4;
 	if (*p == '!')
@@ -390,8 +457,6 @@ int config(char *name)
 	}
         read_ip(p, &pa->src, &pa->srcmask);
       }
-      else if (strncasecmp(p, "remote=", 7)==0)
-        read_ip(p+7, &pa->remote, &pa->remotemask);
 #ifdef DO_SNMP
       else if (strncasecmp(p, "ifname=", 7)==0)
         pa->iface=get_ifindex(&cur_router, IFNAME, &p);
