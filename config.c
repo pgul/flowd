@@ -451,7 +451,7 @@ static int parse_file(FILE *f)
 #ifdef DO_PERL
     if (strncasecmp(str, "@perl_include", 13) == 0 && isspace(str[13]))
     {
-      char perlincfile[256], perlincfunc[256], *perlincargs[64];
+      char perlincfile[256], perlincfunc[256], *perlincargs[64], c;
       int i, h[2], pid;
 
       for (p=str+14; *p && isspace(*p); p++);
@@ -498,7 +498,10 @@ static int parse_file(FILE *f)
               break;
             }
             while (*p1 && isspace(*p1)) *p1++='\0';
+            c=*p1;
+            *p1='\0';
             perlincargs[i++]=strdup(p);
+            *p1=c;
             p=p1;
           }
           if (*p=='\0')
