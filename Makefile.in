@@ -29,8 +29,8 @@ install:	all
 clean:
 	rm -f *.o config.log config.cache config.status
 
-flowd.o: flowd.c flowd.h
-acl.o: acl.c flowd.h
-stat.o: stat.c flowd.h
-config.o: config.c flowd.h
-getclass.o: getclass.c flowd.h
+flowd.o: flowd.c flowd.h Makefile
+acl.o: acl.c flowd.h Makefile
+stat.o: stat.c flowd.h Makefile
+config.o: config.c flowd.h Makefile
+getclass.o: getclass.c flowd.h Makefile
