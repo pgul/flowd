@@ -18,13 +18,16 @@ struct linktype *linkhead=NULL;
 struct attrtype *attrhead=NULL;
 char logname[256]=LOGNAME, snapfile[256]=SNAPFILE, aclname[256]=ACLNAME;
 char pidfile[256]=PIDFILE;
-int  write_interval=WRITE_INTERVAL, reload_interval=RELOAD_INTERVAL;
+int  write_interval=WRITE_INTERVAL;
 u_long bindaddr=INADDR_ANY;
 unsigned short port=PORT;
+#if NBITS>0
+int  reload_interval=RELOAD_INTERVAL;
 long mapkey;
 int  fromshmem, fromacl;
 char uaname[NCLASSES][32];
 int  uaindex[NCLASSES];
+#endif
 #ifdef DO_MYSQL
 char mysql_user[256], mysql_pwd[256], mysql_host[256];
 char mysql_socket[256], mysql_db[256];
@@ -167,8 +170,7 @@ static void read_proto(char *p, u_short *proto)
 
 static int parse_line(char *str)
 {
-  char *p, *p1;
-  int i, j;
+  char *p;
   struct hostent *he;
 
   p=strchr(str, '\n');
@@ -192,11 +194,6 @@ static int parse_line(char *str)
   { strncpy(snapfile, p+5, sizeof(snapfile)-1);
     return 0;
   }
-  if (strncasecmp(p, "acl=", 4)==0)
-  { strncpy(aclname, p+4, sizeof(aclname)-1);
-    fromacl=1;
-    return 0;
-  }
   if (strncasecmp(p, "pid=", 4)==0)
   { strncpy(pidfile, p+4, sizeof(pidfile)-1);
     return 0;
@@ -206,17 +203,23 @@ static int parse_line(char *str)
     if (write_interval == 0) write_interval=WRITE_INTERVAL;
     return 0;
   }
-  if (strncasecmp(p, "reload-int=", 11)==0)
-  { reload_interval = atoi(p+11);
-    if (reload_interval == 0) reload_interval=RELOAD_INTERVAL;
-    return 0;
-  }
   if (strncasecmp(p, "bindaddr=", 9)==0)
   { bindaddr=inet_addr(p+9);
     return 0;
   }
   if (strncasecmp(p, "port=", 5)==0)
   { port=atoi(p+5);
+    return 0;
+  }
+#if NBITS>0
+  if (strncasecmp(p, "reload-int=", 11)==0)
+  { reload_interval = atoi(p+11);
+    if (reload_interval == 0) reload_interval=RELOAD_INTERVAL;
+    return 0;
+  }
+  if (strncasecmp(p, "acl=", 4)==0)
+  { strncpy(aclname, p+4, sizeof(aclname)-1);
+    fromacl=1;
     return 0;
   }
   if (strncasecmp(p, "mapkey=", 7)==0)
@@ -234,10 +237,13 @@ static int parse_line(char *str)
   }
   if (strncasecmp(p, "classes=", 8)==0)
   {
+    int i, j;
+    char *p1;
+
     p+=8;
     i=0;
     while (p && *p)
-    { 
+    {
       if (i==NCLASSES)
       { fprintf(stderr, "Too many classes!\n");
         break;
@@ -257,6 +263,7 @@ static int parse_line(char *str)
     }
     return 0;
   }
+#endif
 #ifdef DO_PERL
   if (strncasecmp(p, "perlwrite=", 10)==0)
   { char *p1 = p+10;
@@ -311,12 +318,14 @@ static int parse_line(char *str)
     p+=7;
     freerouter(&cur_router);
 #ifdef DO_SNMP
-    if ((p1=strchr(p, '@'))!=NULL)
-    { *p1++='\0';
-      strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
-      p=p1;
-    } else
-      strcpy(cur_router.community, "public");
+    { char *p1;
+      if ((p1=strchr(p, '@'))!=NULL)
+      { *p1++='\0';
+        strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
+        p=p1;
+      } else
+        strcpy(cur_router.community, "public");
+    }
 #endif
     /* get router address */
     if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
@@ -565,14 +574,15 @@ static int parse_file(FILE *f)
 int config(char *name)
 {
   FILE *f;
-  int i;
 
 #ifdef DO_PERL
   exitperl();
 #endif
+#if NBITS>0
   if (fromshmem) freeshmem();
   fromshmem=0;
   mapkey=MAPKEY;
+#endif
 #ifdef DO_PERL
   strcpy(perlfile,     "flowd.pl");
   strcpy(perlstart,    "startwrite");
@@ -610,15 +620,20 @@ int config(char *name)
     attrhead=NULL;
   }
   attrtail=NULL;
-  for (i=0; i<NCLASSES; i++)
-  { uaindex[i]=i;
-    snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
+#if NBITS>0
+  { int i;
+    for (i=0; i<NCLASSES; i++)
+    { uaindex[i]=i;
+      snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
+    }
   }
+#endif
   cur_router.addr=(u_long)-1;
 #ifdef DO_SNMP
   { struct router_t *prouter;
     for (prouter=routers; prouter; prouter=prouter->next)
-    { for (i=0; i<NUM_OIDS; i++)
+    { int i;
+      for (i=0; i<NUM_OIDS; i++)
 	if (prouter->data[i])
 	{ free(prouter->data[i]);
 	  prouter->data[i] = NULL;
@@ -629,6 +644,7 @@ int config(char *name)
 #endif
   parse_file(f);
   fclose(f);
+#if NBITS>0
   if (fromshmem)
   { if (init_map())
     { fprintf(stderr, "Can't init shared memory: %s\n", strerror(errno));
@@ -637,11 +653,12 @@ int config(char *name)
   }
   if (access(aclname, R_OK)==0)
     fromacl=1;
-  else if (fromacl)
+  else if (!fromshmem)
   { fprintf(stderr, "Can't read acl %s!\n", aclname);
     return 1;
   } else
     uaname[0][0]='\0';
+#endif
   freerouter(&cur_router);
 #ifdef DO_PERL
   PerlStart(perlfile);

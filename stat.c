@@ -30,8 +30,11 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
               u_short srcport, u_short dstport)
 {
   u_long local=0, remote=0, flowsrc;
+#if NBITS>0
   int src_ua, dst_ua;
-  u_short remote_if, remote_as, remote_class, src_class, dst_class;
+  u_short remote_class, src_class, dst_class;
+#endif
+  u_short remote_if, remote_as;
   u_short lport, rport;
   struct attrtype *pa;
   sigset_t set, oset;
@@ -40,8 +43,10 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   src_ip = ntohl(srcip);
   dst_ip = ntohl(dstip);
   flowsrc = ntohl(src);
+#if NBITS>0
   src_class=find_mask(src_ip);
   dst_class=find_mask(dst_ip);
+#endif
   sigemptyset(&set);
   sigaddset(&set, SIGINFO);
   sigprocmask(SIG_BLOCK, &set, &oset);
@@ -51,7 +56,9 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
       remote=src_ip;
       remote_if=input;
       remote_as=src_as;
+#if NBITS>0
       remote_class=src_class;
+#endif
       lport=ntohs(dstport);
       rport=ntohs(srcport);
     } else
@@ -59,7 +66,9 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
       remote=dst_ip;
       remote_if=output;
       remote_as=dst_as;
+#if NBITS>0
       remote_class=dst_class;
+#endif
       lport=ntohs(srcport);
       rport=ntohs(dstport);
     }
@@ -70,7 +79,9 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
          (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
          (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
          (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
+#if NBITS>0
          (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
+#endif
          (pa->proto==(u_short)-1  || pa->proto==proto) &&
          (pa->port1==(u_short)-1  || (pa->port1<=lport && pa->port2>=lport)) &&
          (pa->lport1==(u_short)-1 || (pa->lport1<=rport && pa->lport2>=rport))
@@ -80,15 +91,18 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
         break; // ignore
   if (fsnap && !pa->fallthru)
   { 
-      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s%s%s%s%s.%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
+      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
+#if NBITS>0
+	      ".%s2%s"
+#endif
+	      ".%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)\n",
         (in ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
         pa->link->name,
-	(fromshmem || fromacl) ? "." : "",
-	uaname[uaindex[src_class]],
-	(fromshmem || fromacl) ? "2" : "",
-	uaname[uaindex[dst_class]],
+#if NBITS>0
+	uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
+#endif
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output,
@@ -100,9 +114,15 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
       snap_traf=0;
     }
   }
+#if NBITS>0
   src_ua=uaindex[src_class];
   dst_ua=uaindex[dst_class];
-  if ((pa->link->bytes[in^pa->reverse][src_ua][dst_ua]+=len)>=0xf0000000lu)
+#endif
+  if ((pa->link->bytes[in^pa->reverse]
+#if NBITS>0
+			  [src_ua][dst_ua]
+#endif
+			  +=len)>=0xf0000000lu)
     write_stat();
   if (!pa->fallthru)
     break;
@@ -133,8 +153,8 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
        "CREATE TABLE IF NOT EXISTS %s (              \
               time TIMESTAMP NOT NULL,               \
               user_id INT UNSIGNED NOT NULL,         \
-              %s%s                                   \
-              bytes INT UNSIGNED NOT NULL,           \
+              bytes_in INT UNSIGNED NOT NULL,        \
+              bytes_out INT UNSIGNED NOT NULL,       \
               INDEX (user_id),                       \
               INDEX (time)                           \
         )"
@@ -241,19 +261,23 @@ void mysql_start(void)
 
 void write_stat(void)
 {
-  int i, j, k;
   struct linktype *pl;
   FILE *fout;
+#if NBITS>0
+  int i, j, k;
+#endif
 #ifdef DO_MYSQL
   MYSQL *conn = NULL;
   char table[256], query[1024], stamp[15];
+#if NBITS>0
 #if NCLASSES>=256
   static
 #endif
   char enums[(sizeof(uaname[0])+4)*NCLASSES];
+  char *p;
+#endif
   int  mysql_connected=0, table_created=0, utable_created=0;
   struct tm *tm_now;
-  char *p;
 #endif
 
   last_write=time(NULL);
@@ -264,13 +288,14 @@ void write_stat(void)
   tm_now=localtime(&last_write);
   strftime( table, sizeof( table), mysql_table,   tm_now);
   strftime(stamp,  sizeof(stamp), "%Y%m%d%H%M%S", tm_now);
+#if NBITS>0
   p=enums;
 #if NCLASSES==65536
   for (i=0; i<65535; i++)
 #else
   for (i=0; i<NCLASSES; i++)
 #endif
-  { if (!fromshmem && !fromacl) break;
+  {
     if (strncmp(uaname[i], "class", 5) == 0)
       continue;
     if (p>enums)
@@ -284,15 +309,23 @@ void write_stat(void)
   }
   *p='\0';
 #endif
+#endif
   fprintf(fout, "----- %s", ctime(&last_write));
   for (pl=linkhead; pl; pl=pl->next)
-  { for (i=0; i<2; i++)
+  { 
+#if NBITS>0
+    for (i=0; i<2; i++)
       for (j=0; j<NCLASSES; j++)
         for (k=0; k<NCLASSES; k++)
           if (pl->bytes[i][j][k])
           { 
             plwrite(pl->name, uaname[j], uaname[k], (i ? "in" : "out"),
                     pl->bytes[i][j][k]);
+#else
+    if (pl->bytes[0] || pl->bytes[1])
+    {
+           plwrite(pl->name, pl->bytes[0], pl->bytes[1]);
+#endif
 #ifdef DO_MYSQL
             if (!mysql_connected)
             {
@@ -318,9 +351,11 @@ void write_stat(void)
             }
             if (conn && !table_created)
             {
-              snprintf(query, sizeof(query)-1,
-                 (fromshmem || fromacl) ? create_table : create_table_noclasses,
-                 table, enums, enums);
+#if NBITS>0
+              snprintf(query, sizeof(query), create_table, table, enums, enums);
+#else
+              snprintf(query, sizeof(query), create_table_noclasses, table);
+#endif
               if (mysql_query(conn, query) != 0)
               { mysql_err(conn, "mysql_query() failed");
                 do_disconnect(conn);
@@ -403,13 +438,21 @@ void write_stat(void)
             }
             if (conn)
             { sprintf(query,
-                 "INSERT %s VALUES('%s', '%lu%s%s%s%s', '%s', '%lu')",
+                 "INSERT %s VALUES('%s', '%lu', "
+#if NBITS>0
+		 "'%s', '%s', '%s', "
+#else
+		 "'%lu', "
+#endif
+		 "'%lu')",
                  table, stamp, pl->user_id,
-		 (fromacl || fromshmem) ? "', '" : "",
-		 uaname[j],
-		 (fromacl || fromshmem) ? "', '" : "",
-		 uaname[k],
-                 (i ? "in" : "out"), pl->bytes[i][j][k]);
+#if NBITS>0
+		 uaname[j], uaname[k],
+                 (i ? "in" : "out"), pl->bytes[i][j][k]
+#else
+		 pl->bytes[0], pl->bytes[1]
+#endif
+		);
               if (mysql_query(conn, query) != 0)
               { mysql_err(conn, "mysql_query() failed");
                 do_disconnect(conn);
@@ -417,14 +460,25 @@ void write_stat(void)
               }
             }
 #endif
-            fprintf(fout, "%s%s%s%s%s.%s: %lu bytes\n",
+            fprintf(fout, "%s"
+#if NBITS>0
+                    ".%s2%s.%s: %lu bytes"
+#else
+		    " %lu in, %lu out"
+#endif
+		    "\n",
                     pl->name,
-		    (fromacl || fromshmem) ? "." : "",
-		    uaname[j],
-		    (fromacl || fromshmem) ? "2" : "",
-		    uaname[k], (i ? "in" : "out"),
-                    pl->bytes[i][j][k]);
+#if NBITS>0
+		    uaname[j], uaname[k], (i ? "in" : "out"), pl->bytes[i][j][k]
+#else
+		    pl->bytes[0], pl->bytes[1]
+#endif
+		   );
+#if NBITS>0
             pl->bytes[i][j][k]=0;
+#else
+            pl->bytes[0] = pl->bytes[1] = 0;
+#endif
           }
   }
   fputs("\n", fout);

@@ -62,8 +62,10 @@ void hup(int signo)
   { unlink(pidfile);
     exit(0);
   }
+#if NBITS>0
   if (signo==SIGUSR1)
     reload_acl();
+#endif
   if (signo==SIGUSR2)
     if (config(confname))
     { fprintf(stderr, "Config error!\n");
@@ -182,15 +184,19 @@ int main(int argc, char *argv[])
     saved_argv[i]=argv[i];
   last_write=time(NULL);
   signal(SIGHUP,  hup);
+#if NBITS>0
   signal(SIGUSR1, hup);
+#endif
   signal(SIGUSR2, hup);
   signal(SIGINT,  hup);
   signal(SIGTERM, hup);
   signal(SIGINFO, hup);
+#if NBITS>0
   if (reload_acl())
   { fprintf(stderr, "reload acl error!\n");
     /* return 1; */
   }
+#endif
   if (daemonize && !verbose) daemon(0, 0);
   f=fopen(pidfile, "w");
   if (f)
@@ -288,8 +294,10 @@ int main(int argc, char *argv[])
     }
     if (last_write+write_interval<=time(NULL))
       write_stat();
+#if NBITS>0
     if (last_reload+reload_interval<=time(NULL))
       reload_acl();
+#endif
   }
   unlink(pidfile);
   close(sockfd);

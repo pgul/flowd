@@ -11,6 +11,7 @@
 #define sv_undef PL_sv_undef
 #endif
 #endif
+#include "flowd.h"
 
 char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
 PerlInterpreter *perl = NULL;
@@ -117,22 +118,36 @@ void plstop(void)
   }
 }
 
+#if NBITS>0
 void plwrite(char *user, char *src, char *dst, char *direct, int bytes)
 {
-  SV *svuser, *svsrc, *svdst, *svdirect, *svbytes;
+  SV *svsrc, *svdst, *svdirect, *svbytes;
+#else
+void plwrite(char *user, int bytes_in, int bytes_out)
+{
+  SV *svbytesin, *svbytesout;
+#endif
+  SV *svuser;
   STRLEN n_a;
 
   dSP;
-  svuser   = perl_get_sv("user",      TRUE);
-  svsrc    = perl_get_sv("src",       TRUE);
-  svdst    = perl_get_sv("dst",       TRUE);
-  svdirect = perl_get_sv("direction", TRUE);
-  svbytes  = perl_get_sv("bytes",     TRUE);
-  sv_setpv(svuser,   user  );
+  svuser     = perl_get_sv("user",      TRUE);
+#if NBITS>0
+  svsrc      = perl_get_sv("src",       TRUE);
+  svdst      = perl_get_sv("dst",       TRUE);
+  svbytes    = perl_get_sv("bytes",     TRUE);
+  svdirect   = perl_get_sv("direction", TRUE);
   sv_setpv(svsrc,    src   );
   sv_setpv(svdst,    dst   );
   sv_setpv(svdirect, direct);
   sv_setiv(svbytes,  bytes );
+#else
+  svbytesin  = perl_get_sv("bytes_in",  TRUE);
+  svbytesout = perl_get_sv("bytes_out", TRUE);
+  sv_setiv(svbytesin,  bytes_in );
+  sv_setiv(svbytesout, bytes_out);
+#endif
+  sv_setpv(svuser,   user  );
   ENTER;
   SAVETMPS;
   PUSHMARK(SP);

@@ -1840,20 +1840,25 @@ if test "${with_nbits+set}" = set; then
   nbits=$withval
 fi
 
-# Check whether --with-minprefix or --without-minprefix was given.
-if test "${with_minprefix+set}" = set; then
-  withval="$with_minprefix"
-  maxprefix=$withval
+# Check whether --with-maxprefix or --without-maxprefix was given.
+if test "${with_maxprefix+set}" = set; then
+  withval="$with_maxprefix"
+  maxprefix=$withval; setpref=1
 fi
 
-if echo $nbits | grep -q '[^0-9]' || [ $nbits -ne 1 -a $nbits -ne 2 -a $nbits -ne 4 -a $nbits -ne 8 -a $nbits -ne 16 ]
+if echo $nbits | grep -q '[^0-9]' || [ $nbits -ne 0 -a $nbits -ne 1 -a $nbits -ne 2 -a $nbits -ne 4 -a $nbits -ne 8 -a $nbits -ne 16 ]
 then
         { echo "configure: error: Incorrect nbits value $nbits" 1>&2; exit 1; }
 fi
 if echo $maxprefix | grep -q '[^0-9]' || [ $maxprefix -gt 32 -o $maxprefix -lt 16 ]
 then
-        { echo "configure: error: Incorrect nbits value $nbits" 1>&2; exit 1; }
+        { echo "configure: error: Incorrect maxprfix value $maxprefix" 1>&2; exit 1; }
 fi
+if [ $nbits -eq 0 -a -n "$setpref" ]
+then
+	echo "configure: warning: maxprefix ignored when nbits=0" 1>&2
+fi
+[ $nbits -ne 0 ] && classsrc="acl.c getclass.c"
 
 cat >> confdefs.h <<EOF
 #define NBITS $nbits
@@ -1862,6 +1867,7 @@ EOF
 cat >> confdefs.h <<EOF
 #define MAXPREFIX $maxprefix
 EOF
+
 
 
 
@@ -2014,6 +2020,7 @@ s%@AWK@%$AWK%g
 s%@PERL@%$PERL%g
 s%@CPP@%$CPP%g
 s%@perlsrc@%$perlsrc%g
+s%@classsrc@%$classsrc%g
 
 CEOF
 EOF

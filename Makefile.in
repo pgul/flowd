@@ -4,7 +4,7 @@ CC=@CC@
 AWK=@AWK@
 COPT=-Wall -funsigned-char @DEFS@ -DCONFDIR=\"@sysconfdir@\" @CFLAGS@
 
-SRCS=flowd.c acl.c stat.c config.c getclass.c @perlsrc@
+SRCS=flowd.c stat.c config.c @classsrc@ @perlsrc@
 OBJS=${SRCS:.c=.o}
 
 .c.o:

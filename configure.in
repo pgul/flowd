@@ -300,20 +300,26 @@ maxprefix=24
 AC_ARG_WITH(nbits,
      [  --with-nbits=NBITS      set number of bits for class of addr (2)],
      [nbits=$withval],[])
-AC_ARG_WITH(minprefix,
+AC_ARG_WITH(maxprefix,
      [  --with-maxprefix=LEN    set maximum prefix length (24)],
-     [maxprefix=$withval],[])
-[if echo $nbits | grep -q '[^0-9]' || [ $nbits -ne 1 -a $nbits -ne 2 -a $nbits -ne 4 -a $nbits -ne 8 -a $nbits -ne 16 ]]
+     [maxprefix=$withval; setpref=1],[])
+[if echo $nbits | grep -q '[^0-9]' || [ $nbits -ne 0 -a $nbits -ne 1 -a $nbits -ne 2 -a $nbits -ne 4 -a $nbits -ne 8 -a $nbits -ne 16 ]]
 then
-        AC_ERROR(Incorrect nbits value $nbits, must be 1..16, power of 2)
+        AC_ERROR(Incorrect nbits value $nbits, must be 0 or 1..16, power of 2)
 fi
 [if echo $maxprefix | grep -q '[^0-9]' || [ $maxprefix -gt 32 -o $maxprefix -lt 16 ]]
 then
-        AC_ERROR(Incorrect nbits value $nbits, must be 1..16, power of 2)
+        AC_ERROR(Incorrect maxprfix value $maxprefix, must be 16..32)
 fi
+[if [ $nbits -eq 0 -a -n "$setpref" ]]
+then
+	AC_MSG_WARN([maxprefix ignored when nbits=0])
+fi
+[[ $nbits -ne 0 ] && classsrc="acl.c getclass.c"]
 
 AC_DEFINE_UNQUOTED(NBITS, $nbits)
 AC_DEFINE_UNQUOTED(MAXPREFIX, $maxprefix)
 AC_SUBST(perlsrc)
+AC_SUBST(classsrc)
 
 AC_OUTPUT(Makefile)
