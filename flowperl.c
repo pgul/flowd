@@ -119,11 +119,11 @@ void plstop(void)
 }
 
 #if NBITS>0
-void plwrite(char *user, char *src, char *dst, char *direct, int bytes)
+void plwrite(char *user, char *src, char *dst, char *direct, unsigned int bytes)
 {
   SV *svsrc, *svdst, *svdirect, *svbytes;
 #else
-void plwrite(char *user, int bytes_in, int bytes_out)
+void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
 {
   SV *svbytesin, *svbytesout;
 #endif
@@ -140,12 +140,12 @@ void plwrite(char *user, int bytes_in, int bytes_out)
   sv_setpv(svsrc,    src   );
   sv_setpv(svdst,    dst   );
   sv_setpv(svdirect, direct);
-  sv_setiv(svbytes,  bytes );
+  sv_setuv(svbytes,  bytes );
 #else
   svbytesin  = perl_get_sv("bytes_in",  TRUE);
   svbytesout = perl_get_sv("bytes_out", TRUE);
-  sv_setiv(svbytesin,  bytes_in );
-  sv_setiv(svbytesout, bytes_out);
+  sv_setuv(svbytesin,  bytes_in );
+  sv_setuv(svbytesout, bytes_out);
 #endif
   sv_setpv(svuser,   user  );
   ENTER;
