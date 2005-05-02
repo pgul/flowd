@@ -15,7 +15,7 @@
 #include "flowd.h"
 
 struct linktype *linkhead=NULL;
-struct attrtype *attrhead=NULL;
+struct attrtype *attrhead=NULL, *attrtail;
 char logname[256]=LOGNAME, snapfile[256]=SNAPFILE, aclname[256]=ACLNAME;
 char pidfile[256]=PIDFILE;
 int  write_interval=WRITE_INTERVAL;
@@ -50,8 +50,6 @@ struct router_t {
     struct router_t *next;
 #endif
 };
-static struct linktype *pl;
-static struct attrtype *pa, *attrtail;
 static struct router_t cur_router;
 
 #ifdef DO_SNMP
@@ -172,6 +170,8 @@ static int parse_line(char *str)
 {
   char *p;
   struct hostent *he;
+  struct linktype *pl;
+  struct attrtype *pa;
 
   p=strchr(str, '\n');
   if (p) *p='\0';
@@ -574,6 +574,8 @@ static int parse_file(FILE *f)
 int config(char *name)
 {
   FILE *f;
+  struct linktype *pl;
+  struct attrtype *pa;
 
 #ifdef DO_PERL
   exitperl();
