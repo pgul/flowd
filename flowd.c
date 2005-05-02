@@ -127,8 +127,7 @@ int usage(void)
 {
   printf("NetFlow collector      " __DATE__ "\n");
   printf("    Usage:\n");
-  printf("flowd [-d] [-v] [config]\n");
-  printf("  -f <fname>  - use config file <fname>\n");
+  printf("flowd [-d] [-v] [-E] [config]\n");
   printf("  -d          - daemonize\n");
   printf("  -v          - increase verbose level\n");
   printf("  -E          - dump preprocessed config and exit\n");
@@ -145,14 +144,13 @@ int main(int argc, char *argv[])
   confname=CONFNAME;
   daemonize=0;
 
-  while ((i=getopt(argc, argv, "dh?vEf:")) != -1)
+  while ((i=getopt(argc, argv, "dh?vE")) != -1)
   {
     switch (i)
     {
       case 'd': daemonize=1; break;
       case 'v': verbose++;   break;
       case 'E': preproc=1;   break;
-      case 'f': confname=strdup(optarg); break;
       case 'h':
       case '?': usage(); return 1;
       default:  fprintf(stderr, "Unknown option -%c\n", (char)i);
