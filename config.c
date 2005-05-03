@@ -488,7 +488,7 @@ static int parse_file(FILE *f)
         {
           if (*p=='\"')
           {
-            p1=strchr(p, '\"');
+            p1=strchr(p+1, '\"');
             if (p1==NULL)
             {
               warning("Unmatched quotes in perl_include, params ignored");
