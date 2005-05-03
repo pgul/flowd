@@ -647,7 +647,7 @@ int config(char *name)
   parse_file(f);
   fclose(f);
 #if NBITS>0
-  if (fromshmem)
+  if (fromshmem && !preproc)
   { if (init_map())
     { warning("Can't init shared memory: %s", strerror(errno));
       return 1;
@@ -655,7 +655,7 @@ int config(char *name)
   }
   if (access(aclname, R_OK)==0)
     fromacl=1;
-  else if (!fromshmem)
+  else if (!fromshmem && !preproc)
   { warning("Can't read acl %s!", aclname);
     return 1;
   } else
@@ -663,7 +663,7 @@ int config(char *name)
 #endif
   freerouter(&cur_router);
 #ifdef DO_PERL
-  PerlStart(perlfile);
+  if (!preproc) PerlStart(perlfile);
 #endif
   return 0;
 }
