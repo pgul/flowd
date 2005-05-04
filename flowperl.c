@@ -80,8 +80,7 @@ void plstart(void)
 {
   STRLEN n_a;
 
-  if (perl==NULL)
-    return;
+  if (perl)
   {
     dSP;
     ENTER;
@@ -102,19 +101,21 @@ void plstop(void)
 {
   STRLEN n_a;
 
-  if (perl==NULL) return;
-  dSP;
-  ENTER;
-  SAVETMPS;
-  PUSHMARK(SP);
-  PUTBACK;
-  perl_call_pv(perlstop, G_EVAL|G_SCALAR);
-  SPAGAIN;
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-  if (SvTRUE(ERRSV))
-    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  if (perl)
+  {
+    dSP;
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    PUTBACK;
+    perl_call_pv(perlstop, G_EVAL|G_SCALAR);
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+    if (SvTRUE(ERRSV))
+      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  }
 }
 
 #if NBITS>0
@@ -129,60 +130,63 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
   SV *svuser;
   STRLEN n_a;
 
-  if (perl==NULL) return;
-  dSP;
-  svuser     = perl_get_sv("user",      TRUE);
+  if (perl)
+  {
+    dSP;
+    svuser     = perl_get_sv("user",      TRUE);
 #if NBITS>0
-  svsrc      = perl_get_sv("src",       TRUE);
-  svdst      = perl_get_sv("dst",       TRUE);
-  svbytes    = perl_get_sv("bytes",     TRUE);
-  svdirect   = perl_get_sv("direction", TRUE);
-  sv_setpv(svsrc,    src   );
-  sv_setpv(svdst,    dst   );
-  sv_setpv(svdirect, direct);
-  sv_setuv(svbytes,  bytes );
+    svsrc      = perl_get_sv("src",       TRUE);
+    svdst      = perl_get_sv("dst",       TRUE);
+    svbytes    = perl_get_sv("bytes",     TRUE);
+    svdirect   = perl_get_sv("direction", TRUE);
+    sv_setpv(svsrc,    src   );
+    sv_setpv(svdst,    dst   );
+    sv_setpv(svdirect, direct);
+    sv_setuv(svbytes,  bytes );
 #else
-  svbytesin  = perl_get_sv("bytes_in",  TRUE);
-  svbytesout = perl_get_sv("bytes_out", TRUE);
-  sv_setuv(svbytesin,  bytes_in );
-  sv_setuv(svbytesout, bytes_out);
+    svbytesin  = perl_get_sv("bytes_in",  TRUE);
+    svbytesout = perl_get_sv("bytes_out", TRUE);
+    sv_setuv(svbytesin,  bytes_in );
+    sv_setuv(svbytesout, bytes_out);
 #endif
-  sv_setpv(svuser,   user  );
-  ENTER;
-  SAVETMPS;
-  PUSHMARK(SP);
-  PUTBACK;
-  perl_call_pv(perlwrite, G_EVAL|G_SCALAR);
-  SPAGAIN;
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-  if (SvTRUE(ERRSV))
-    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+    sv_setpv(svuser,   user  );
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    PUTBACK;
+    perl_call_pv(perlwrite, G_EVAL|G_SCALAR);
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+    if (SvTRUE(ERRSV))
+      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  }
 }
 
 void perl_call(char *file, const char *func, char **args)
 {
   STRLEN n_a;
 
-  if (PerlStart(file))
-    return;
-  dSP;
-  ENTER;
-  SAVETMPS;
-  PUSHMARK(SP);
-  while (*args)
+  if (PerlStart(file) == 0)
   {
-    XPUSHs(sv_2mortal(newSVpv(*args, 0)));
-    args++;
+    dSP;
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    while (*args)
+    {
+      XPUSHs(sv_2mortal(newSVpv(*args, 0)));
+      args++;
+    }
+    PUTBACK;
+    perl_call_pv(func, G_EVAL|G_SCALAR);
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+    if (SvTRUE(ERRSV))
+      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+    exitperl();
   }
-  PUTBACK;
-  perl_call_pv(func, G_EVAL|G_SCALAR);
-  SPAGAIN;
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-  if (SvTRUE(ERRSV))
-    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
-  exitperl();
 }
