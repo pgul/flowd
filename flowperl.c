@@ -164,7 +164,7 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
   }
 }
 
-void perl_call(char *file, const char *func, char **args)
+void perl_call(char *file, char *func, char **args)
 {
   STRLEN n_a;
 

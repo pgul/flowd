@@ -98,7 +98,7 @@ void plwrite(char *user, char *src, char *dst, char *direct, unsigned int bytes)
 #else
 void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out);
 #endif
-void perl_call(char *file, const char *func, char **args);
+void perl_call(char *file, char *func, char **args);
 
 extern char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
 #else
