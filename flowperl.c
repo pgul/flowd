@@ -80,19 +80,22 @@ void plstart(void)
 {
   STRLEN n_a;
 
-  if (perl==NULL) return;
-  dSP;
-  ENTER;
-  SAVETMPS;
-  PUSHMARK(SP);
-  PUTBACK;
-  perl_call_pv(perlstart, G_EVAL|G_SCALAR);
-  SPAGAIN;
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-  if (SvTRUE(ERRSV))
-    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  if (perl==NULL)
+    return;
+  {
+    dSP;
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    PUTBACK;
+    perl_call_pv(perlstart, G_EVAL|G_SCALAR);
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+    if (SvTRUE(ERRSV))
+      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  }
 }
 
 void plstop(void)
