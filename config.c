@@ -557,6 +557,12 @@ static int parse_file(FILE *f)
 	perl_call(perlincfile, perlincfunc, perlincargs);
 	exit(0);
       }
+      for(i=0; perlincargs[i]; i++)
+      {
+        free(perlincargs[i]);
+        perlincargs[i]=NULL;
+        continue;
+      }
       close(h[1]);
       finc=fdopen(h[0], "r");
       parse_file(finc);
