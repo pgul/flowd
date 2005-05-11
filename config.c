@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -554,6 +555,7 @@ static int parse_file(FILE *f)
         close(h[0]);
 	dup2(h[1], fileno(stdout));
 	close(h[1]);
+	exitperl();
 	perl_call(perlincfile, perlincfunc, perlincargs);
 	exit(0);
       }
@@ -583,9 +585,6 @@ int config(char *name)
   struct linktype *pl;
   struct attrtype *pa;
 
-#ifdef DO_PERL
-  exitperl();
-#endif
 #if NBITS>0
   if (fromshmem) freeshmem();
   fromshmem=0;
@@ -669,7 +668,20 @@ int config(char *name)
 #endif
   freerouter(&cur_router);
 #ifdef DO_PERL
-  if (!preproc) PerlStart(perlfile);
+  if (!preproc)
+  {
+    static struct stat spfile, sperlfile;
+    if (stat(perlfile, &spfile))
+    { warning("Can't stat %s!", perlfile);
+      return 1;
+    }
+    spfile.st_atime = spfile.st_mtime;
+    if (memcmp(&spfile, &sperlfile, sizeof(spfile)))
+    { exitperl();
+      PerlStart(perlfile);
+    }
+    memcpy(&sperlfile, &spfile, sizeof(spfile));
+  }
 #endif
   return 0;
 }
