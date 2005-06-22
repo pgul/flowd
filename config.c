@@ -43,6 +43,7 @@ struct router_t {
     u_long addr;
 #ifdef DO_SNMP
     char community[256];
+    int  ifnumber;
     int  nifaces[NUM_OIDS];
     struct routerdata {
       unsigned short ifindex;
@@ -741,8 +742,8 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   struct variable_list *vars;
   oid    root[MAX_OID_LEN], name[MAX_OID_LEN];
   size_t rootlen, namelen;
-  int    running, status, exitval=0, nifaces, varslen;
-  char   *oid, *curvar, ipbuf[16];
+  int    running, status, exitval=0, nifaces, varslen, ifindex;
+  char   *oid, *curvar, ipbuf[16], soid[256];
   struct {
            unsigned short ifindex;
 	   char val[256];
@@ -751,48 +752,90 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   /* get the initial object and subtree */
   memset(&session, 0, sizeof(session));
   snmp_sess_init(&session);
-  init_snmp("snmpapp");
-  rootlen=MAX_OID_LEN;
-  oid=oid2oid(noid);
-  if (snmp_parse_oid(oid, root, &rootlen)==NULL)
-  { warning("Can't parse oid %s", oid);
-    snmp_perror(oid);
-    return 1;
-  }
+  init_snmp("flowd");
   /* open an SNMP session */
   strcpy(ipbuf, inet_ntoa(*(struct in_addr *)&router->addr));
   session.peername = ipbuf;
   session.community = router->community;
   session.community_len = strlen(router->community);
   session.version = ds_get_int(DS_LIBRARY_ID, DS_LIB_SNMPVERSION);
+  oid=oid2oid(noid);
   debug(1, "Do snmpwalk %s %s %s", ipbuf, router->community, oid);
   if ((ss = snmp_open(&session)) == NULL)
   { snmp_sess_perror("flowd", &session);
     return 1;
   }
   debug(6, "snmp session opened");
+  while (router->ifnumber == 0 && noid!=IFIP) {
+    rootlen=MAX_OID_LEN;
+    if (snmp_parse_oid("ifNumber.0", root, &rootlen)==NULL)
+    { warning("Can't parse oid ifNumber.0");
+      snmp_perror("ifNumber.0");
+      break;
+    }
+    pdu = snmp_pdu_create(SNMP_MSG_GET);
+    snmp_add_null_var(pdu, root, rootlen);
+    status = snmp_synch_response(ss, pdu, &response);
+    if (status == STAT_SUCCESS){
+      if (response->errstat == SNMP_ERR_NOERROR){
+        vars = response->variables;
+        if (vars) {
+          router->ifnumber = vars->val.integer[0];
+          debug(2, "ifNumber = %d", router->ifnumber);
+        }
+      } else
+        warning("snmpget response error");
+    } else {
+      warning("snmpget status error");
+      snmp_sess_perror("flowd", ss);
+    }
+    if (response) snmp_free_pdu(response);
+    break;
+  }
+
   /* get first object to start walk */
+  rootlen=MAX_OID_LEN;
+  if (snmp_parse_oid(oid, root, &rootlen)==NULL)
+  { warning("Can't parse oid %s", oid);
+    snmp_perror(oid);
+    return 1;
+  }
   memmove(name, root, rootlen*sizeof(oid));
   namelen = rootlen;
   running = 1;
-  nifaces = varslen = 0;
+  nifaces = varslen = ifindex = 0;
   data = NULL;
 
   while (running) {
     /* create PDU for GETNEXT request and add object name to request */
-    pdu = snmp_pdu_create(SNMP_MSG_GETNEXT);
+    if (router->ifnumber > 0 && noid != IFIP) {
+      snprintf(soid, sizeof(soid), "%s.%d", oid, ifindex+1);
+      namelen=MAX_OID_LEN;
+      if (snmp_parse_oid(soid, name, &namelen)==NULL)
+      { warning("Can't parse oid %s", soid);
+        snmp_perror(soid);
+        break;
+      }
+      pdu = snmp_pdu_create(SNMP_MSG_GET);
+    } else
+      pdu = snmp_pdu_create(SNMP_MSG_GETNEXT);
     snmp_add_null_var(pdu, name, namelen);
     /* do the request */
     status = snmp_synch_response(ss, pdu, &response);
     if (status == STAT_SUCCESS) {
+      ifindex++;
       if (response->errstat == SNMP_ERR_NOERROR) {
         /* check resulting variables */
         for (vars = response->variables; vars; vars = vars->next_variable) {
           if ((vars->name_length < rootlen) ||
               (memcmp(root, vars->name, rootlen * sizeof(oid))!=0)) {
             /* not part of this subtree */
-            running = 0;
-            debug(6, "Not part of this subtree");
+            if (router->ifnumber > 0 && noid != IFIP)
+              debug(6, "%s - not part of this subtree", soid);
+            else {
+              running = 0;
+              debug(6, "Not part of this subtree");
+            }
             continue;
           }
           if (nifaces%16==0)
@@ -828,12 +871,16 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
         }
       } else {
         /* error in response */
-        running = 0;
         if (response->errstat != SNMP_ERR_NOSUCHNAME) {
           warning("Error in snmp packet.");
           exitval = 2;
-        } else
+          running = 0;
+        } else if (ifindex <= router->ifnumber && noid != IFIP)
+          debug(2, "%s - no such name", soid);
+        else {
           debug(2, "snmpwalk successfully done");
+          running = 0;
+        }
       }
     } else if (status == STAT_TIMEOUT) {
       warning("snmp timeout");
