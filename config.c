@@ -808,7 +808,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
 
   while (running) {
     /* create PDU for GETNEXT request and add object name to request */
-    if (router->ifnumber > 0 && noid != IFIP) {
+    if (router->ifnumber > 0 && noid != IFIP && running == 2) {
       snprintf(soid, sizeof(soid), "%s.%d", oid, ifindex+1);
       namelen=MAX_OID_LEN;
       if (snmp_parse_oid(soid, name, &namelen)==NULL)
@@ -830,12 +830,12 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
           if ((vars->name_length < rootlen) ||
               (memcmp(root, vars->name, rootlen * sizeof(oid))!=0)) {
             /* not part of this subtree */
-            if (router->ifnumber > 0 && noid != IFIP)
-              debug(6, "%s - not part of this subtree", soid);
-            else {
-              running = 0;
+            running = 0;
+            if (router->ifnumber > 0 && noid != IFIP) {
+              if (ifindex < router->ifnumber) running = 2;
+              debug(6, "%s.%d - not part of this subtree", oid, ifindex);
+	    } else
               debug(6, "Not part of this subtree");
-            }
             continue;
           }
           if (nifaces%16==0)
@@ -875,8 +875,8 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
           warning("Error in snmp packet.");
           exitval = 2;
           running = 0;
-        } else if (ifindex <= router->ifnumber && noid != IFIP)
-          debug(2, "%s - no such name", soid);
+        } else if (ifindex < router->ifnumber && noid != IFIP)
+          debug(2, "%s.%d - no such name", oid, ifindex);
         else {
           debug(2, "snmpwalk successfully done");
           running = 0;
