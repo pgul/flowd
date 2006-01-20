@@ -1,0 +1,58 @@
+.TH FLOWD 8 "20 Jan 2006"
+
+.SH NAME
+binkd \- netflow collector
+
+.SH SYNOPSIS
+.B flowd
+[\-d] [\-v] [\-E] [\-h] [\fI<config>\fP]
+
+.SH DESCRIPTION
+.PP
+The \fIflowd\fP is a netflow collector and traffic analizer.
+It receives netflow from router and summirize traffic for clients
+according to config by IP-addresses, interfaces, ports, as numbers
+etc. Flowd can store results to text file or to mysql database.
+You can also use perl hooks to take your own actions, process
+results and store its as you whish.
+.PP
+\fIflowd\fP also can communicate with \fIbgpd\fP daemon and get
+information about classes of IP-addresses (local, ukrainian,
+russian, world etc.). Without \fIbgpd\fP it gen get this information
+from access-list stored in the text file.
+
+.SH OPTIONS
+.l The \fIflowd\fP accepts the following options:
+.TP 8
+.B -h
+Display a list of all commandline options.
+.TP 8
+.B -v
+Increase verbouse level.
+.TP 8
+.B -d
+Daemonize.
+.TP 8
+.B -E
+Dump preprocessed config and exit.
+
+.SH SIGNALS
+.TP 10
+.BI SIGHUP
+Causes \fIflowd\fP to write collected statistics.
+.TP 10
+.BI SIGUSR1
+Causes \fIflowd\fP to reread access-list.
+.TP 10
+.BI SIGUSR2
+Causes \fIflowd\fP to write collected statistics and reread config.
+.TP 10
+.BI SIGINT
+Causes \fIflowd\fP to restart itself.
+.TP 10
+.BI SIGINFO
+Causes \fIflowd\fP to write 100M of received traffic to snap-file.
+
+.SH AUTHORS
+Pavel Gulchouck <gul@gul.kiev.ua>.
+
