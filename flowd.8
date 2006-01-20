@@ -14,11 +14,13 @@ It receives netflow from router and summirize traffic for clients
 according to config by IP-addresses, interfaces, ports, as numbers
 etc. Flowd can store results to text file or to mysql database.
 You can also use perl hooks to take your own actions, process
-results and store its as you whish.
+results and store its as you whish. The \fIflowd\fP can use
+SNMP for get ifName, ifDescr, ifAlias etc. from router and
+resolve this selectors in the config to ifindexes.
 .PP
 \fIflowd\fP also can communicate with \fIbgpd\fP daemon and get
 information about classes of IP-addresses (local, ukrainian,
-russian, world etc.). Without \fIbgpd\fP it gen get this information
+russian, world etc.). Without \fIbgpd\fP it can get this information
 from access-list stored in the text file.
 
 .SH OPTIONS
