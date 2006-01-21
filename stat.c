@@ -139,6 +139,8 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
     break;
     }
   }
+  if (pa)
+    break;
   }
   sigprocmask(SIG_SETMASK, &oset, NULL);
 }
