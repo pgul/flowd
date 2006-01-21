@@ -312,7 +312,7 @@ static int parse_line(char *str)
 #endif
   if (strncasecmp(p, "router=", 7)==0)
   {
-    cur_router->next = malloc(sizeof(struct router_t));
+    cur_router->next = calloc(1, sizeof(struct router_t));
     cur_router = cur_router->next;
     memset(cur_router, 0, sizeof(struct router_t));
     p+=7;
@@ -625,8 +625,7 @@ int config(char *name)
     cur_router = cur_router->next;
     free(routers);
   }
-  cur_router = routers = malloc(sizeof(struct router_t));
-  memset(cur_router, 0, sizeof(struct router_t));
+  cur_router = routers = calloc(1, sizeof(struct router_t));
   cur_router->addr = (u_long)-1;
 #if NBITS>0
   { int i;
