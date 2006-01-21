@@ -37,6 +37,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   u_short remote_if, remote_as;
   u_short lport, rport;
   struct attrtype *pa;
+  struct router_t *pr;
   sigset_t set, oset;
   u_long src_ip, dst_ip;
 
@@ -55,7 +56,11 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   src_class=find_mask(src_ip);
   dst_class=find_mask(dst_ip);
 #endif
-  for (pa=attrhead; pa; pa=pa->next)
+  for (pr=routers; pr; pr=pr->next)
+  {
+    if (pr->addr != (u_long)-1 && pr->addr != flowsrc)
+      continue;
+  for (pa=pr->attrhead; pa; pa=pa->next)
   { if (in)
     { local=dst_ip;
       remote=src_ip;
@@ -90,12 +95,12 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
          (pa->proto==(u_short)-1  || pa->proto==proto) &&
          (pa->port1==(u_short)-1  || (pa->port1<=lport && pa->port2>=lport)) &&
          (pa->lport1==(u_short)-1 || (pa->lport1<=rport && pa->lport2>=rport))
-	)
+        )
     {
       if (!pa->link && !pa->fallthru)
         break; // ignore
-  if (fsnap /*&& !pa->fallthru*/)
-  { 
+    if (fsnap /*&& !pa->fallthru*/)
+    { 
       fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
 #if NBITS>0
 	      ".%s2%s"
@@ -133,6 +138,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   if (!pa->fallthru)
     break;
     }
+  }
   }
   sigprocmask(SIG_SETMASK, &oset, NULL);
 }

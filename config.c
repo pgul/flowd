@@ -16,7 +16,6 @@
 #include "flowd.h"
 
 struct linktype *linkhead=NULL;
-struct attrtype *attrhead=NULL, *attrtail;
 char logname[256]=LOGNAME, snapfile[256]=SNAPFILE, aclname[256]=ACLNAME;
 char pidfile[256]=PIDFILE;
 int  write_interval=WRITE_INTERVAL;
@@ -35,28 +34,10 @@ char mysql_socket[256], mysql_db[256];
 char mysql_table[256], mysql_utable[256];
 unsigned mysql_port;
 #endif
-#ifdef DO_SNMP
-enum ifoid_t { IFNAME, IFDESCR, IFALIAS, IFIP };
-#define NUM_OIDS (IFIP+1)
-#endif
-struct router_t {
-    u_long addr;
-#ifdef DO_SNMP
-    char community[256];
-    int  ifnumber;
-    int  nifaces[NUM_OIDS];
-    struct routerdata {
-      unsigned short ifindex;
-      char *val;
-    } *data[NUM_OIDS];
-    struct router_t *next;
-#endif
-};
-static struct router_t cur_router;
+struct router_t *routers;
+static struct router_t *cur_router;
 
 #ifdef DO_SNMP
-static struct router_t *routers;
-
 static unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
 #endif
 
@@ -73,8 +54,22 @@ void debug(int level, char *format, ...)
 
 static void freerouter(struct router_t *router)
 {
-  memset(router, 0, sizeof(*router));
-  router->addr = (u_long)-1;
+  struct attrtype *pa;
+#ifdef DO_SNMP
+  int i;
+  for (i=0; i<NUM_OIDS; i++)
+    if (router->data[i])
+    { free(router->data[i]);
+      router->data[i] = NULL;
+      router->nifaces[i] = 0;
+    }
+#endif
+  for (pa=router->attrhead; pa;)
+  {
+    router->attrhead = pa;
+    pa = pa->next;
+    free(router->attrhead);
+  }
 }
 
 static void read_ip(char *p, u_long *ip, u_long *mask)
@@ -317,28 +312,30 @@ static int parse_line(char *str)
 #endif
   if (strncasecmp(p, "router=", 7)==0)
   {
+    cur_router->next = malloc(sizeof(struct router_t));
+    cur_router = cur_router->next;
+    memset(cur_router, 0, sizeof(struct router_t));
     p+=7;
-    freerouter(&cur_router);
 #ifdef DO_SNMP
     { char *p1;
       if ((p1=strchr(p, '@'))!=NULL)
       { *p1++='\0';
-        strncpy(cur_router.community, p, sizeof(cur_router.community)-1);
+        strncpy(cur_router->community, p, sizeof(cur_router->community)-1);
         p=p1;
       } else
-        strcpy(cur_router.community, "public");
+        strcpy(cur_router->community, "public");
     }
 #endif
     /* get router address */
     if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
     { if (strcmp(p, "any")==0)
-        cur_router.addr=(u_long)-1;
+        cur_router->addr=(u_long)-1;
       else
         warning("Warning: Router %s not found", p);
       return 0;
     }
     /* use only first address */
-    memcpy(&cur_router.addr, he->h_addr_list[0], he->h_length);
+    memcpy(&cur_router->addr, he->h_addr_list[0], he->h_length);
     return 0;
   }
   for (p=str; *p && !isspace(*p); p++);
@@ -361,16 +358,16 @@ static int parse_line(char *str)
   pa->link = pl;
   pa->next = NULL;
   pa->reverse=pa->fallthru=0;
-  if (cur_router.addr!=(u_long)-1)
-    pa->src=ntohl(cur_router.addr);	/* mask /32 */
+  if (cur_router->addr!=(u_long)-1)
+    pa->src=ntohl(cur_router->addr);	/* mask /32 */
   else
     pa->src=pa->srcmask=0;		/* match any */
   pa->not=0;
-  if (attrhead==NULL)
-    attrhead = pa;
+  if (cur_router->attrhead==NULL)
+    cur_router->attrhead = pa;
   else
-    attrtail->next = pa;
-  attrtail = pa;
+    cur_router->attrtail->next = pa;
+  cur_router->attrtail = pa;
   /* fill attribute structure */
   while (*p)
   { while (*p && isspace(*p)) p++;
@@ -403,22 +400,27 @@ static int parse_line(char *str)
     else if (strncasecmp(p, "localport=", 10)==0)
       read_ports(p+10, &pa->lport1, &pa->lport2, pa->proto);
     else if (strncasecmp(p, "src=", 4)==0)
-    { p+=4;
-      if (*p == '!')
-      { p++;
-        pa->not=1;
+    {
+      if (pa->srcmask == (u_long)-1)
+        warning("src has no effect inside router section");
+      else {
+        p+=4;
+        if (*p == '!')
+        { p++;
+          pa->not=1;
+        }
+        read_ip(p, &pa->src, &pa->srcmask);
       }
-      read_ip(p, &pa->src, &pa->srcmask);
     }
 #ifdef DO_SNMP
     else if (strncasecmp(p, "ifname=", 7)==0)
-      pa->iface=get_ifindex(&cur_router, IFNAME, &p);
+      pa->iface=get_ifindex(cur_router, IFNAME, &p);
     else if (strncasecmp(p, "ifdescr=", 8)==0)
-      pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
+      pa->iface=get_ifindex(cur_router, IFDESCR, &p);
     else if (strncasecmp(p, "ifalias=", 8)==0)
-      pa->iface=get_ifindex(&cur_router, IFDESCR, &p);
+      pa->iface=get_ifindex(cur_router, IFDESCR, &p);
     else if (strncasecmp(p, "ifip=", 5)==0)
-      pa->iface=get_ifindex(&cur_router, IFIP, &p);
+      pa->iface=get_ifindex(cur_router, IFIP, &p);
 #endif
     while (*p && !isspace(*p)) p++;
   }
@@ -584,7 +586,6 @@ int config(char *name)
 {
   FILE *f;
   struct linktype *pl;
-  struct attrtype *pa;
 
 #if NBITS>0
   if (fromshmem) freeshmem();
@@ -610,43 +611,28 @@ int config(char *name)
   { warning("Can't open %s: %s!", name, strerror(errno));
     return -1;
   }
-  /* free links and attrs */
-  if (linkhead)
-  { for (pl=linkhead->next; pl; pl=pl->next)
-    { free(linkhead);
-      linkhead=pl;
-    }
+  /* free links and routers */
+  for (pl=linkhead; pl;)
+  {
+    linkhead = pl;
+    pl = pl->next;
     free(linkhead);
-    linkhead=NULL;
   }
-  if (attrhead)
-  { for (pa=attrhead->next; pa; pa=pa->next)
-    { free(attrhead);
-      attrhead=pa;
-    }
-    free(attrhead);
-    attrhead=NULL;
+  linkhead = NULL;
+  for (cur_router=routers; cur_router;)
+  { freerouter(cur_router);
+    routers = cur_router;
+    cur_router = cur_router->next;
+    free(routers);
   }
-  attrtail=NULL;
+  cur_router = routers = malloc(sizeof(struct router_t));
+  memset(cur_router, 0, sizeof(struct router_t));
+  cur_router->addr = (u_long)-1;
 #if NBITS>0
   { int i;
     for (i=0; i<NCLASSES; i++)
     { uaindex[i]=i;
       snprintf(uaname[i], sizeof(uaname[i])-1, "class%u", i);
-    }
-  }
-#endif
-  cur_router.addr=(u_long)-1;
-#ifdef DO_SNMP
-  { struct router_t *prouter;
-    for (prouter=routers; prouter; prouter=prouter->next)
-    { int i;
-      for (i=0; i<NUM_OIDS; i++)
-	if (prouter->data[i])
-	{ free(prouter->data[i]);
-	  prouter->data[i] = NULL;
-	  prouter->nifaces[i] = 0;
-	}
     }
   }
 #endif
@@ -667,7 +653,6 @@ int config(char *name)
   } else
     uaname[0][0]='\0';
 #endif
-  freerouter(&cur_router);
 #ifdef DO_PERL
   if (!preproc)
   {
@@ -746,7 +731,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   char   *oid, *curvar, ipbuf[16], soid[256];
   struct {
            unsigned short ifindex;
-	   char val[256];
+           char val[256];
   } *data;
 
   /* get the initial object and subtree */
@@ -756,7 +741,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   /* open an SNMP session */
   strcpy(ipbuf, inet_ntoa(*(struct in_addr *)&router->addr));
   session.peername = ipbuf;
-  session.community = router->community;
+  session.community = (unsigned char *)router->community;
   session.community_len = strlen(router->community);
   session.version = ds_get_int(DS_LIBRARY_ID, DS_LIB_SNMPVERSION);
   oid=oid2oid(noid);
@@ -849,7 +834,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
             data[nifaces++].ifindex=vars->val.integer[0];
           } else
           {
-            strncpy(data[nifaces].val, vars->val.string, sizeof(data->val)-1);
+            strncpy(data[nifaces].val, (char *)vars->val.string, sizeof(data->val)-1);
             if (vars->val_len<sizeof(data->val))
               data[nifaces].val[vars->val_len]='\0';
             else
@@ -920,7 +905,6 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
 {
   int left, right, mid, i;
   char val[256], *p;
-  struct router_t *prouter;
 
   if (router->addr==(u_long)-1)
   { warning("Router not specified for %s", oid2str(oid));
@@ -931,20 +915,6 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
     exit(2);
   }
   *s = p+1;
-  /* search this router/oid */
-  for (prouter=routers; prouter; prouter=prouter->next)
-  { if (prouter->addr==router->addr)
-      break;
-  }
-  if (prouter==NULL)
-  { prouter=malloc(sizeof(*prouter));
-    memset(prouter, 0, sizeof(*prouter));
-    prouter->addr=router->addr;
-    prouter->next=routers;
-    routers=prouter;
-    strncpy(prouter->community, router->community, sizeof(router->community)-1);
-  }
-  router=prouter;
   if (router->data[oid] == NULL)
     /* do snmpwalk for the oid */
     snmpwalk(router, oid);

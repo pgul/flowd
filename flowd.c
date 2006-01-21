@@ -137,6 +137,7 @@ int usage(void)
 int main(int argc, char *argv[])
 {
   int  n, i, count, ver, seq=0, daemonize;
+  socklen_t sl;
   FILE *f;
   struct sockaddr_in my_addr, remote_addr;
   char buf[MTU];
@@ -205,9 +206,9 @@ int main(int argc, char *argv[])
   }
   openlog("flowd", LOG_PID, LOG_DAEMON);
 
-  while ((i=sizeof(remote_addr),
+  while ((sl=sizeof(remote_addr),
           memset(&remote_addr, 0, sizeof(remote_addr)),
-          n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &i)) != -1)
+          n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &sl)) != -1)
   {
     if (n==0) continue;
     ver = ntohs(*(short int *)buf);

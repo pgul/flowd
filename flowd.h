@@ -29,6 +29,10 @@ typedef unsigned char classtype;
 #endif
 #define NCLASSES	(1<<NBITS)
 
+#ifndef HAVE_SOCKLEN_T
+  typedef int socklen_t;
+#endif
+
 struct linktype {
 	char name[32];
 #ifdef DO_MYSQL
@@ -52,10 +56,29 @@ struct attrtype {
 	int reverse, fallthru, in;
 	unsigned short iface, as, class, proto;
 	unsigned short port1, port2, lport1, lport2;
-	u_long router;
 };
 
-extern struct attrtype *attrhead;
+#ifdef DO_SNMP
+enum ifoid_t { IFNAME, IFDESCR, IFALIAS, IFIP };
+#define NUM_OIDS (IFIP+1)
+#endif
+
+struct router_t {
+  u_long addr;
+#ifdef DO_SNMP
+  char community[256];
+  int  ifnumber;
+  int  nifaces[NUM_OIDS];
+  struct routerdata {
+    unsigned short ifindex;
+    char *val;
+  } *data[NUM_OIDS];
+#endif
+  struct attrtype *attrhead, *attrtail;
+  struct router_t *next;
+};
+
+extern struct router_t *routers;
 extern time_t last_write, last_reload;
 extern struct linktype *linkhead;
 extern char logname[], snapfile[], pidfile[];
