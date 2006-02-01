@@ -301,10 +301,10 @@ AC_ARG_WITH(debug,
      [AC_DEFINE(DEBUG) CFLAGS="$CFLAGS -g"], [CFLAGS="$CFLAGS -O3"])
 
 dnl Set shmem params
-nbits=2
+nbits=0
 maxprefix=24
 AC_ARG_WITH(nbits,
-     [  --with-nbits=NBITS      set number of bits for class of addr (2)],
+     [  --with-nbits=NBITS      set number of bits for class of addr (0 - no bgpd)],
      [nbits=$withval],[])
 AC_ARG_WITH(maxprefix,
      [  --with-maxprefix=LEN    set maximum prefix length (24)],
