@@ -22,7 +22,7 @@ ac_help="$ac_help
 ac_help="$ac_help
   --with-debug            generate debug info"
 ac_help="$ac_help
-  --with-nbits=NBITS      set number of bits for class of addr (2)"
+  --with-nbits=NBITS      set number of bits for class of addr (0 - no bgpd)"
 ac_help="$ac_help
   --with-maxprefix=LEN    set maximum prefix length (24)"
 
@@ -1857,7 +1857,7 @@ else
 fi
 
 
-nbits=2
+nbits=0
 maxprefix=24
 # Check whether --with-nbits or --without-nbits was given.
 if test "${with_nbits+set}" = set; then
