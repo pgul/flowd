@@ -25,7 +25,8 @@ test:		test.c
 install:	all
 	install flowd $(prefix)/bin
 	[ -f @sysconfdir@/flowd.conf ] || install flowd.conf @sysconfdir@
-	install -d -m 644 flowd.8 @mandir@/man8/flowd.8
+	[ -d @mandir@/man8 ] || mkdir -p @mandir@/man8
+	install -m 644 flowd.8 @mandir@/man8/flowd.8
 
 clean:
 	rm -f *.o config.log config.cache config.status
