@@ -58,7 +58,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
 #endif
   for (pr=routers; pr; pr=pr->next)
   {
-    if (pr->addr != (u_long)-1 && ntohl(pr->addr) != flowsrc)
+    if (pr->addr != (u_long)-1 && pr->addr != src)
       continue;
   for (pa=pr->attrhead; pa; pa=pa->next)
   { if (in)

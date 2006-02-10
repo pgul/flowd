@@ -74,6 +74,7 @@ struct router_t {
     char *val;
   } *data[NUM_OIDS];
 #endif
+  unsigned seq;
   struct attrtype *attrhead, *attrtail;
   struct router_t *next;
 };

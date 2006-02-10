@@ -136,7 +136,7 @@ int usage(void)
 
 int main(int argc, char *argv[])
 {
-  int  n, i, count, ver, seq=0, daemonize;
+  int  n, i, count, ver, daemonize;
   socklen_t sl;
   FILE *f;
   struct sockaddr_in my_addr, remote_addr;
@@ -249,6 +249,8 @@ int main(int argc, char *argv[])
     }
     else if (ver==5)
     {
+      struct router_t *pr;
+
       if (n<sizeof(struct head5))
       { warning("Error: received %d bytes, needed %d", n, sizeof(*head5));
         continue;
@@ -264,14 +266,25 @@ int main(int argc, char *argv[])
                sizeof(*head5)+ntohs(head5->count)*sizeof(*data5));
         continue;
       }
-#if 0
-      if (seq && seq!=ntohl(head5->seq))
-        printf("Warning: seq mismatch (must %lu, real %lu)\n",
-               seq, ntohl(head5->seq));
-#endif
-      seq = ntohl(head5->seq)+ntohs(head5->count);
-      data5 = (struct data5 *)(head5+1);
       count=ntohs(head5->count);
+#if 1
+      /* check seq */
+      for (pr=routers; pr; pr=pr->next)
+        if (pr->addr == remote_addr.sin_addr.s_addr)
+          break;
+#if 0
+      if (pr == NULL && routers->addr == (u_long)-1 && routers->next == NULL)
+        pr = routers; /* single router accepts all flows -- MB single source? */
+#endif
+      if (pr) {
+        unsigned seq = ntohl(head5->seq);
+        if (pr->seq && pr->seq != seq)
+          warning("warning: lost %u packets from %s\n", seq - pr->seq,
+                 inet_ntoa(remote_addr.sin_addr));
+        pr->seq = seq + count;
+      }
+#endif
+      data5 = (struct data5 *)(head5+1);
       for (i=0; i<count; i++)
       {
         unsigned long bytes;
