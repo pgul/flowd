@@ -441,13 +441,13 @@ static int parse_file(FILE *f)
       if (*p=='\"')
       {
         p++;
-	p1=strchr(p, '\"');
-	if (p1==NULL)
-	{
+        p1=strchr(p, '\"');
+        if (p1==NULL)
+        {
           warning("Unmatched quotes in include, ignored: %s", str);
-	  continue;
-	}
-	*p1='\0';
+          continue;
+        }
+        *p1='\0';
       } else
       { for (p1=p; *p1 && !isspace(*p1); p1++);
         *p1='\0';
@@ -455,7 +455,7 @@ static int parse_file(FILE *f)
       if ((finc=fopen(p, "r")) == NULL)
       {
         warning("Can't open %s: %s, include ignored", p, strerror(errno));
-	continue;
+        continue;
       }
       parse_file(finc);
       fclose(finc);
@@ -532,35 +532,35 @@ static int parse_file(FILE *f)
       perlincargs[i]=NULL;
       if (pipe(h))
       { warning("Can't create pipe: %s", strerror(errno));
-	for(i=0; perlincargs[i]; i++)
-	{
+        for(i=0; perlincargs[i]; i++)
+        {
           free(perlincargs[i]);
-	  perlincargs[i]=NULL;
-	  continue;
-	}
+          perlincargs[i]=NULL;
+          continue;
+        }
       }
       fflush(stdout);
       fflush(stderr);
       pid=fork();
       if (pid<0)
       { warning("Can't fork: %s!", strerror(errno));
-	close(h[0]);
-	close(h[1]);
-	for(i=0; perlincargs[i]; i++)
-	{
+        close(h[0]);
+        close(h[1]);
+        for(i=0; perlincargs[i]; i++)
+        {
           free(perlincargs[i]);
-	  perlincargs[i]=NULL;
-	  continue;
-	}
+          perlincargs[i]=NULL;
+          continue;
+        }
       }
       else if (pid==0)
       {
         close(h[0]);
-	dup2(h[1], fileno(stdout));
-	close(h[1]);
-	exitperl();
-	perl_call(perlincfile, perlincfunc, perlincargs);
-	exit(0);
+        dup2(h[1], fileno(stdout));
+        close(h[1]);
+        exitperl();
+        perl_call(perlincfile, perlincfunc, perlincargs);
+        exit(0);
       }
       for(i=0; perlincargs[i]; i++)
       {
@@ -818,7 +818,7 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
             if (router->ifnumber > 0 && noid != IFIP) {
               if (ifindex < router->ifnumber) running = 2;
               debug(6, "%s.%d - not part of this subtree", oid, ifindex);
-	    } else
+            } else
               debug(6, "Not part of this subtree");
             continue;
           }
@@ -939,7 +939,7 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
     {
       debug(4, "ifindex for %s=%s at %s is %d", oid2str(oid), val, 
         inet_ntoa(*(struct in_addr *)&router->addr),
-	router->data[oid][mid].ifindex);
+        router->data[oid][mid].ifindex);
       return router->data[oid][mid].ifindex;
     }
     if (i>0) right=mid;
