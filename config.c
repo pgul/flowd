@@ -508,7 +508,7 @@ static int parse_file(FILE *f)
               warning("Unmatched quotes in perl_include, params ignored");
               break;
             }
-            *p1++='\0';
+            *p1='\0';
             perlincargs[i++]=strdup(p+1);
             p=p1+1;
             while (*p && isspace(*p)) p++;
