@@ -34,7 +34,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   int src_ua, dst_ua;
   u_short remote_class, src_class, dst_class;
 #endif
-  u_short remote_if, remote_as;
+  u_short local_if, remote_if, remote_as;
   u_short lport, rport;
   struct attrtype *pa;
   struct router_t *pr;
@@ -65,6 +65,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
     { local=dst_ip;
       remote=src_ip;
       remote_if=input;
+      local_if=output;
       remote_as=src_as;
 #if NBITS>0
       remote_class=src_class;
@@ -75,6 +76,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
     { local=src_ip;
       remote=dst_ip;
       remote_if=output;
+      local_if=input;
       remote_as=dst_as;
 #if NBITS>0
       remote_class=dst_class;
@@ -89,6 +91,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
          (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
          (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
          (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
+         (pa->liface==(u_short)-1 || (pa->iface==local_if)) &&
 #if NBITS>0
          (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
 #endif

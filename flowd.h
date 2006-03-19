@@ -54,7 +54,7 @@ struct attrtype {
 	struct linktype *link;
 	struct attrtype *next;
 	int reverse, fallthru, in;
-	unsigned short iface, as, class, proto;
+	unsigned short iface, liface, as, class, proto;
 	unsigned short port1, port2, lport1, lport2;
 };
 

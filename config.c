@@ -387,6 +387,8 @@ static int parse_line(char *str)
       pa->as=atoi(p+3);
     else if (strncasecmp(p, "ifindex=", 8)==0)
       pa->iface=atoi(p+8);
+    else if (strncasecmp(p, "lifindex=", 8)==0)
+      pa->liface=atoi(p+9);
     else if (strncasecmp(p, "class=", 6)==0)
       pa->class=atoi(p+6);
     else if (strncasecmp(p, "nexthop=", 8)==0)
@@ -421,6 +423,14 @@ static int parse_line(char *str)
       pa->iface=get_ifindex(cur_router, IFDESCR, &p);
     else if (strncasecmp(p, "ifip=", 5)==0)
       pa->iface=get_ifindex(cur_router, IFIP, &p);
+    else if (strncasecmp(p, "lifname=", 8)==0)
+      pa->liface=get_ifindex(cur_router, IFNAME, &p);
+    else if (strncasecmp(p, "lifdescr=", 8)==0)
+      pa->liface=get_ifindex(cur_router, IFDESCR, &p);
+    else if (strncasecmp(p, "lifalias=", 8)==0)
+      pa->liface=get_ifindex(cur_router, IFDESCR, &p);
+    else if (strncasecmp(p, "lifip=", 5)==0)
+      pa->liface=get_ifindex(cur_router, IFIP, &p);
 #endif
     while (*p && !isspace(*p)) p++;
   }
