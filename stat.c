@@ -91,7 +91,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
          (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
          (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
          (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
-         (pa->liface==(u_short)-1 || (pa->iface==local_if)) &&
+         (pa->liface==(u_short)-1 || (pa->liface==local_if)) &&
 #if NBITS>0
          (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
 #endif

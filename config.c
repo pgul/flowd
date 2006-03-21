@@ -420,16 +420,16 @@ static int parse_line(char *str)
     else if (strncasecmp(p, "ifdescr=", 8)==0)
       pa->iface=get_ifindex(cur_router, IFDESCR, &p);
     else if (strncasecmp(p, "ifalias=", 8)==0)
-      pa->iface=get_ifindex(cur_router, IFDESCR, &p);
+      pa->iface=get_ifindex(cur_router, IFALIAS, &p);
     else if (strncasecmp(p, "ifip=", 5)==0)
       pa->iface=get_ifindex(cur_router, IFIP, &p);
     else if (strncasecmp(p, "lifname=", 8)==0)
       pa->liface=get_ifindex(cur_router, IFNAME, &p);
-    else if (strncasecmp(p, "lifdescr=", 8)==0)
+    else if (strncasecmp(p, "lifdescr=", 9)==0)
       pa->liface=get_ifindex(cur_router, IFDESCR, &p);
-    else if (strncasecmp(p, "lifalias=", 8)==0)
-      pa->liface=get_ifindex(cur_router, IFDESCR, &p);
-    else if (strncasecmp(p, "lifip=", 5)==0)
+    else if (strncasecmp(p, "lifalias=", 9)==0)
+      pa->liface=get_ifindex(cur_router, IFALIAS, &p);
+    else if (strncasecmp(p, "lifip=", 6)==0)
       pa->liface=get_ifindex(cur_router, IFIP, &p);
 #endif
     while (*p && !isspace(*p)) p++;
@@ -945,7 +945,7 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
   left=0; right=router->nifaces[oid];
   while (left<right)
   { mid=(left+right)/2;
-    if ((i=strcmp(router->data[oid][mid].val, val))==0)
+    if ((i=strcasecmp(router->data[oid][mid].val, val))==0)
     {
       debug(4, "ifindex for %s=%s at %s is %d", oid2str(oid), val, 
         inet_ntoa(*(struct in_addr *)&router->addr),
