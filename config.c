@@ -726,7 +726,7 @@ static char *oid2oid(enum ifoid_t oid)
 
 static int comp(const void *a, const void *b)
 {
-  return strcmp(((struct routerdata *)a)->val, ((struct routerdata *)b)->val);
+  return strcasecmp(((struct routerdata *)a)->val, ((struct routerdata *)b)->val);
 }
 
 static int snmpwalk(struct router_t *router, enum ifoid_t noid)
