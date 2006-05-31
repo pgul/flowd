@@ -315,6 +315,8 @@ void write_stat(void)
   {
     if (strncmp(uaname[i], "class", 5) == 0)
       continue;
+    if (uaname[i][0] == '\0')
+      continue;
     if (p>enums)
     { strcpy(p, ", ");
       p+=2;
