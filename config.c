@@ -48,6 +48,7 @@ void debug(int level, char *format, ...)
   if (level<=verbose)
   { vfprintf(stdout, format, arg);
     fputs("\n", stdout);
+    fflush(stdout);
   }
   va_end(arg);
 }
@@ -314,7 +315,6 @@ static int parse_line(char *str)
   {
     cur_router->next = calloc(1, sizeof(struct router_t));
     cur_router = cur_router->next;
-    memset(cur_router, 0, sizeof(struct router_t));
     p+=7;
 #ifdef DO_SNMP
     { char *p1;

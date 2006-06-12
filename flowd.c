@@ -276,12 +276,30 @@ int main(int argc, char *argv[])
       if (pr == NULL && routers->addr == (u_long)-1 && routers->next == NULL)
         pr = routers; /* single router accepts all flows -- MB single source? */
 #endif
+      debug(4, "Received %u flows from %s (seq %lu)",
+            count, inet_ntoa(remote_addr.sin_addr), ntohl(head5->seq));
       if (pr) {
         unsigned seq = ntohl(head5->seq);
-        if (pr->seq && pr->seq != seq)
-          warning("warning: lost %u packets from %s", seq - pr->seq,
-                 inet_ntoa(remote_addr.sin_addr));
-        pr->seq = seq + count;
+	for (i=0; i<MAXVRF; i++)
+	  if (pr->seq[i] == seq || pr->seq[i] == 0) break;
+	if (pr->seq[i] != seq) {
+	  for (i=0; i<MAXVRF; i++) {
+	    if (pr->seq[i] == 0) break;
+            if (seq - pr->seq[i] <= MAXLOST) {
+              warning("warning: lost %u flows (%u packets) from %s",
+                      seq - pr->seq[i], (seq - pr->seq[i]) / count,
+                      inet_ntoa(remote_addr.sin_addr));
+              break;
+	    }
+	  }
+	  if (i == MAXVRF) {
+            warning("Bad seq counter. Too many lost packets or vrfs?");
+            i = random() % MAXVRF;
+	  }
+	}
+	if (i > 0)
+	  memmove(pr->seq + 1, pr->seq, sizeof(pr->seq[0]) * i);
+        pr->seq[0] = seq + count;
       }
 #endif
       data5 = (struct data5 *)(head5+1);
@@ -329,6 +347,7 @@ void warning(char *format, ...)
   va_start(ap, format);
   vfprintf(stderr, format, ap);
   fprintf(stderr, "\n");
+  fflush(stderr);
   va_end(ap);
 }
 
@@ -342,6 +361,7 @@ void error(char *format, ...)
   va_start(ap, format);
   vfprintf(stderr, format, ap);
   fprintf(stderr, "\n");
+  fflush(stderr);
   va_end(ap);
 }
 

@@ -5,6 +5,8 @@
 #define SNAPFILE	LOGDIR "/snap"
 #define ACLNAME		CONFDIR "/flowd.acl"
 #define PIDFILE		"/var/run/flowd.pid"
+#define MAXLOST		300
+#define MAXVRF		32
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)
 #define MAXMACS		(16*256) /* size of hash-table */
@@ -74,7 +76,7 @@ struct router_t {
     char *val;
   } *data[NUM_OIDS];
 #endif
-  unsigned seq;
+  unsigned seq[MAXVRF];
   struct attrtype *attrhead, *attrtail;
   struct router_t *next;
 };
