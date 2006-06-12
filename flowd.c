@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
       if (pr) {
         unsigned seq = ntohl(head5->seq);
         if (pr->seq && pr->seq != seq)
-          warning("warning: lost %u packets from %s\n", seq - pr->seq,
+          warning("warning: lost %u packets from %s", seq - pr->seq,
                  inet_ntoa(remote_addr.sin_addr));
         pr->seq = seq + count;
       }
