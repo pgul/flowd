@@ -171,6 +171,18 @@ int main(int argc, char *argv[])
   { printf("socket: %s\n", strerror(errno));
     return 1;
   }
+#ifdef SO_RCVBUF
+  n = sizeof(i);
+  if (getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &i, &n))
+    printf("getsockopt rcvbuf failed: %s\n", strerror(errno));
+  else
+    debug(1, "recv buffer size %u", i);
+  i = 129024;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &i, sizeof(i)))
+    printf("setsockopt rcvbuf failed: %s\n", strerror(errno));
+  else
+    debug(1, "set recv buffer size to %u", i);
+#endif
   memset(&my_addr, 0, sizeof(my_addr));
   my_addr.sin_family = AF_INET;
   my_addr.sin_addr.s_addr = bindaddr;
