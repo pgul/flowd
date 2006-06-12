@@ -5,7 +5,7 @@
 #define SNAPFILE	LOGDIR "/snap"
 #define ACLNAME		CONFDIR "/flowd.acl"
 #define PIDFILE		"/var/run/flowd.pid"
-#define MAXLOST		300
+#define MAXLOST		3000 /* ~1000 packets */
 #define MAXVRF		32
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)

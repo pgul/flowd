@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
       case 'h':
       case '?': usage(); return 1;
       default:  fprintf(stderr, "Unknown option -%c\n", (char)i);
-		usage(); return 2;
+                usage(); return 2;
     }
   }
   if (argc>optind)
@@ -241,10 +241,10 @@ int main(int argc, char *argv[])
         output=ntohs(data1[i].output);
         add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
                  1, 0, bytes, input, output, 0, 0, data1[i].prot,
-		 data1[i].srcport, data1[i].dstport);
+                 data1[i].srcport, data1[i].dstport);
         add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
                  0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot,
-		 data1[i].srcport, data1[i].dstport);
+                 data1[i].srcport, data1[i].dstport);
       }
     }
     else if (ver==5)
@@ -280,25 +280,26 @@ int main(int argc, char *argv[])
             count, inet_ntoa(remote_addr.sin_addr), ntohl(head5->seq));
       if (pr) {
         unsigned seq = ntohl(head5->seq);
-	for (i=0; i<MAXVRF; i++)
-	  if (pr->seq[i] == seq || pr->seq[i] == 0) break;
-	if (pr->seq[i] != seq) {
-	  for (i=0; i<MAXVRF; i++) {
-	    if (pr->seq[i] == 0) break;
+        for (i=0; i<MAXVRF; i++)
+          if (pr->seq[i] == seq || pr->seq[i] == 0) break;
+        if (pr->seq[i] != seq) {
+          for (i=0; i<MAXVRF; i++) {
+            if (pr->seq[i] == 0) break;
             if (seq - pr->seq[i] <= MAXLOST) {
               warning("warning: lost %u flows (%u packets) from %s",
-                      seq - pr->seq[i], (seq - pr->seq[i]) / count,
+                      seq - pr->seq[i],
+                      (seq - pr->seq[i]) / (count > 1 ? count - 1 : count),
                       inet_ntoa(remote_addr.sin_addr));
               break;
-	    }
-	  }
-	  if (i == MAXVRF) {
+            }
+          }
+          if (i == MAXVRF) {
             warning("Bad seq counter. Too many lost packets or vrfs?");
             i = random() % MAXVRF;
-	  }
-	}
-	if (i > 0)
-	  memmove(pr->seq + 1, pr->seq, sizeof(pr->seq[0]) * i);
+          }
+        }
+        if (i > 0)
+          memmove(pr->seq + 1, pr->seq, sizeof(pr->seq[0]) * i);
         pr->seq[0] = seq + count;
       }
 #endif
@@ -315,7 +316,7 @@ int main(int argc, char *argv[])
         dst_as=ntohs(data5[i].dst_as);
         add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
                  1, 0, bytes, input, output, src_as, dst_as, data5[i].prot,
-		 data5[i].srcport, data5[i].dstport);
+                 data5[i].srcport, data5[i].dstport);
         add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
                  0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
                  data5[i].prot, data5[i].srcport, data5[i].dstport);
