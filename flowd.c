@@ -172,8 +172,8 @@ int main(int argc, char *argv[])
     return 1;
   }
 #ifdef SO_RCVBUF
-  n = sizeof(i);
-  if (getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &i, (socklen_t *)&n))
+  sl = sizeof(i);
+  if (getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &i, &sl))
     printf("getsockopt rcvbuf failed: %s\n", strerror(errno));
   else
     debug(1, "recv buffer size %u", i);
