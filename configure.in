@@ -300,6 +300,25 @@ AC_ARG_WITH(debug,
      [  --with-debug            generate debug info],
      [AC_DEFINE(DEBUG) CFLAGS="$CFLAGS -g"], [CFLAGS="$CFLAGS -O3"])
 
+AC_ARG_WITH(receiver,
+     [  --with-receiver         run separate receiver process (default yes)],
+     [], [])
+case x$withval in
+  xno)
+    ;;
+  *)
+    AC_DEFINE(WITH_RECEIVER)
+    ;;
+esac
+
+AC_ARG_WITH(threads,
+     [  --with-threads          use pthreads and semaphores (unstable)],
+     [AC_DEFINE(WITH_THREADS) LDFLAGS="$LDFLAGS -pthread"], [])
+
+AC_ARG_WITH(semaphores,
+     [  --with-semaphores       use POSIX semaphores (unstable)],
+     [AC_DEFINE(POSIX_SEM)], [])
+
 dnl Set shmem params
 nbits=0
 maxprefix=24

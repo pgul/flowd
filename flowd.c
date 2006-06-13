@@ -12,6 +12,12 @@
 #include <arpa/inet.h>
 #include <syslog.h>
 #include <stdarg.h>
+#ifdef WITH_THREADS
+#include <pthread.h>
+#elif defined(WITH_RECEIVER)
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#endif
 #include "flowd.h"
 
 #ifndef SIGINFO
@@ -56,12 +62,61 @@ struct data5 {
   unsigned short pad2;
 } *data5;
 
-void hup(int signo)
+#if defined(WITH_RECEIVER)
+static struct shqueue_t *shq;
+#ifdef WITH_THREADS
+static u_long shq_head, shq_tail;
+static pthread_t recv_tid;
+#else
+#define shq_head (*(u_long *)shbuf)
+#define shq_tail (*((u_long *)shbuf+1))
+static pid_t child_pid;
+static int shbufid;
+static void *shbuf;
+#endif
+#endif
+
+static void exitfunc(void)
 {
+#ifdef WITH_THREADS
+  flow_sem_destroy();
+#elif defined(WITH_RECEIVER)
+  struct shmid_ds buf;
+
+  flow_sem_lock();
+  if (shbufid != -1) {
+    if (shbuf) {
+      shq = NULL;
+      shmdt(shbuf);
+      shbuf = NULL;
+    }
+    if (shmctl(shbufid, IPC_STAT, &buf) == 0)
+      if (buf.shm_nattch == 0)
+        shmctl(shbufid, IPC_RMID, &buf);
+    shbufid = -1;
+  }
+  flow_sem_unlock();
+  if (child_pid && child_pid != -1) {
+    kill(child_pid, SIGTERM);
+    child_pid = -1;
+  }
+#endif
+}
+
+static void hup(int signo)
+{
+#if defined(WITH_RECEIVER) && !defined(WITH_THREADS)
+  if (shq && child_pid == 0) {
+    debug(1, "Received signal %u, exiting", signo);
+    exitfunc();
+    exit(0);
+  }
+#endif
   if (signo==SIGHUP || signo==SIGTERM || signo==SIGINT || signo==SIGUSR2)
     write_stat();
   if (signo==SIGTERM)
   { unlink(pidfile);
+    exitfunc();
     exit(0);
   }
 #if NBITS>0
@@ -71,6 +126,7 @@ void hup(int signo)
   if (signo==SIGUSR2)
     if (config(confname))
     { error("Config error, exiting!");
+      exitfunc();
       exit(1);
     }
   if (signo==SIGINFO)
@@ -90,12 +146,12 @@ void hup(int signo)
   { /* restart myself */
     close(sockfd);
     unlink(pidfile);
+    exitfunc();
     execvp(saved_argv[0], saved_argv);
     exit(5);
   }
   signal(signo, hup);
 }
-
 
 #ifndef HAVE_DAEMON
 int daemon(int nochdir, int noclose)
@@ -134,13 +190,90 @@ int usage(void)
   return 0;
 }
 
+static int queue2buf(u_long *s_addr, char **buf, int *len)
+{
+  socklen_t sl;
+  struct sockaddr_in remote_addr;
+  int n;
+  static char databuf[MTU];
+
+#if defined(WITH_RECEIVER)
+  if (shq == NULL) {
+#endif
+    sl=sizeof(remote_addr);
+    memset(&remote_addr, 0, sizeof(remote_addr)),
+    n = recvfrom(sockfd, databuf, sizeof(databuf), 0, (struct sockaddr *)&remote_addr, &sl);
+    if (n == -1) return -1;
+    *s_addr = remote_addr.sin_addr.s_addr;
+    *len = n;
+    *buf = databuf;
+    return 0;
+#if defined(WITH_RECEIVER)
+  }
+  flow_sem_zero();
+  if (shq_head == shq_tail) {
+    flow_sem_wait();
+    if (shq_head == shq_tail) {
+      *len = 0;
+      return 0;
+    }
+  }
+  *s_addr = shq[shq_tail].s_addr;
+  *len = shq[shq_tail].psize;
+  *buf = shq[shq_tail].data;
+  if (shq_tail == SHQSIZE - 1)
+    shq_tail = 0;
+  else
+    shq_tail++;
+  return 0;
+#endif
+}
+
+#if defined(WITH_THREADS) || defined(WITH_RECEIVER)
+static int buf2queue(u_long s_addr, int n, char *buf)
+{
+  u_long newhead = (shq_head + 1) % SHQSIZE;
+
+  if (newhead == shq_tail) {
+    warning("shared buffed full (too slow cpu?)");
+    return -1;
+  }
+  shq[shq_head].s_addr = s_addr;
+  shq[shq_head].psize = n;
+  memcpy(shq[shq_head].data, buf, n);
+  flow_sem_lock();
+  shq_head = newhead;
+  flow_sem_post();
+  flow_sem_unlock();
+  return 0;
+}
+
+static void *recvpkts(void *args)
+{
+  socklen_t sl;
+  struct sockaddr_in remote_addr;
+  int n;
+  char buf[MTU];
+
+  while ((sl=sizeof(remote_addr),
+         memset(&remote_addr, 0, sizeof(remote_addr)),
+         n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &sl)) != -1) {
+    if (n == 0) continue;
+    buf2queue(remote_addr.sin_addr.s_addr, n, buf);
+  }
+  warning("recvfrom error: %s", strerror(errno));
+  return NULL;
+}
+#endif
+
 int main(int argc, char *argv[])
 {
   int  n, i, count, ver, daemonize;
   socklen_t sl;
   FILE *f;
-  struct sockaddr_in my_addr, remote_addr;
-  char buf[MTU];
+  struct sockaddr_in my_addr;
+  char *pbuf;
+  u_long s_addr;
 
   confname=CONFNAME;
   daemonize=0;
@@ -177,7 +310,7 @@ int main(int argc, char *argv[])
     printf("getsockopt rcvbuf failed: %s\n", strerror(errno));
   else
     debug(1, "recv buffer size %u", i);
-  i = 129024;
+  i = RECVBUF;
   if (setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &i, sizeof(i)))
     printf("setsockopt rcvbuf failed: %s\n", strerror(errno));
   else
@@ -217,20 +350,64 @@ int main(int argc, char *argv[])
     fclose(f);
   }
   openlog("flowd", LOG_PID, LOG_DAEMON);
-
-  while ((sl=sizeof(remote_addr),
-          memset(&remote_addr, 0, sizeof(remote_addr)),
-          n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &sl)) != -1)
+#ifdef WITH_THREADS
+  if (flow_sem_init() == 0) {
+    shq = calloc(SHQSIZE, sizeof(*shq));
+  } else {
+    warning("Can't create semaphore: %s", strerror(errno));
+  }
+  if (shq != NULL) {
+    if (pthread_create(&recv_tid, NULL, recvpkts, NULL))
+    {
+      warning("Can't create thread: %s", strerror(errno));
+      free(shq);
+      shq = NULL;
+    }
+  }
+#elif defined(WITH_RECEIVER)
+  shbufid = -1;
+  if (flow_sem_init() == 0) {
+    key_t key = *(unsigned long *)"flow"; /* or IPC_PRIVATE? */
+    shbufid = shmget(key, SHBUFSIZE, IPC_CREAT|0600);
+    if (shbufid == -1) {
+      warning("Can't allocate %u bytes of shared memory: %s", SHBUFSIZE, strerror(errno));
+    }
+  } else {
+    warning("Can't create semaphore: %s", strerror(errno));
+  }
+  if (shbufid != -1) {
+    shbuf =  shmat(shbufid, NULL, 0);
+    if (shbuf == NULL) {
+      exitfunc();
+    } else {
+      shq = (struct shqueue_t *)((u_long *)shbuf + 2);
+    }
+  }
+  if (shbufid != -1) {
+    child_pid = fork();
+    if (child_pid == -1) {
+      exitfunc();
+    } else if (child_pid == 0) {
+      flow_sem_init_poster();
+      recvpkts(NULL);
+      exit(0);
+    } else {
+      flow_sem_init_waiter();
+      close(sockfd);
+    }
+  }
+#endif
+  while (queue2buf(&s_addr, &pbuf, &n) == 0)
   {
     if (n==0) continue;
-    ver = ntohs(*(short int *)buf);
+    ver = ntohs(*(short int *)pbuf);
     if (ver==1)
     {
       if (n<sizeof(struct head1))
       { warning("Error: received %d bytes, needed %d", n, sizeof(*head1));
         continue;
       }
-      head1 = (struct head1 *)buf;
+      head1 = (struct head1 *)pbuf;
 #if 0
       printf("Ver=1, count=%u, uptime=%lu, curtime=%lu, seq=%lu\n",
              ntohs(head1->count), ntohl(head1->uptime), ntohl(head1->curtime),
@@ -243,6 +420,16 @@ int main(int argc, char *argv[])
       }
       data1 = (struct data1 *)(head1+1);
       count=ntohs(head1->count);
+#if defined(WITH_RECEIVER)
+      flow_sem_lock();
+      i = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
+      flow_sem_unlock();
+      debug(4, "Received %u v1-flows from %s (queue %u)",
+            count, inet_ntoa(*(struct in_addr *)&s_addr), i);
+#else
+      debug(4, "Received %u v1-flows from %s",
+            count, inet_ntoa(*(struct in_addr *)&s_addr));
+#endif
       for (i=0; i<count; i++)
       {
         unsigned long bytes;
@@ -251,10 +438,10 @@ int main(int argc, char *argv[])
         bytes=ntohl(data1[i].bytes);
         input=ntohs(data1[i].input);
         output=ntohs(data1[i].output);
-        add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
+        add_stat(s_addr, data1[i].srcaddr, data1[i].dstaddr,
                  1, 0, bytes, input, output, 0, 0, data1[i].prot,
                  data1[i].srcport, data1[i].dstport);
-        add_stat(remote_addr.sin_addr.s_addr,data1[i].srcaddr,data1[i].dstaddr,
+        add_stat(s_addr, data1[i].srcaddr, data1[i].dstaddr,
                  0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot,
                  data1[i].srcport, data1[i].dstport);
       }
@@ -267,7 +454,7 @@ int main(int argc, char *argv[])
       { warning("Error: received %d bytes, needed %d", n, sizeof(*head5));
         continue;
       }
-      head5 = (struct head5 *)buf;
+      head5 = (struct head5 *)pbuf;
 #if 0
       printf("Ver=5, count=%u, uptime=%lu, curtime=%lu, seq=%lu\n",
              ntohs(head5->count), ntohl(head5->uptime), ntohl(head5->curtime),
@@ -282,14 +469,22 @@ int main(int argc, char *argv[])
 #if 1
       /* check seq */
       for (pr=routers; pr; pr=pr->next)
-        if (pr->addr == remote_addr.sin_addr.s_addr)
+        if (pr->addr == s_addr)
           break;
 #if 0
       if (pr == NULL && routers->addr == (u_long)-1 && routers->next == NULL)
         pr = routers; /* single router accepts all flows -- MB single source? */
 #endif
+#if defined(WITH_RECEIVER)
+      flow_sem_lock();
+      i = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
+      flow_sem_unlock();
+      debug(4, "Received %u flows from %s (seq %lu, queue %u)",
+            count, inet_ntoa(*(struct in_addr *)&s_addr), ntohl(head5->seq), i);
+#else
       debug(4, "Received %u flows from %s (seq %lu)",
-            count, inet_ntoa(remote_addr.sin_addr), ntohl(head5->seq));
+            count, inet_ntoa(*(struct in_addr *)&s_addr), ntohl(head5->seq));
+#endif
       if (pr) {
         unsigned seq = ntohl(head5->seq);
         for (i=0; i<MAXVRF; i++)
@@ -298,10 +493,19 @@ int main(int argc, char *argv[])
           for (i=0; i<MAXVRF; i++) {
             if (pr->seq[i] == 0) break;
             if (seq - pr->seq[i] <= MAXLOST) {
+#if defined(WITH_RECEIVER)
+              u_long qfill;
+              flow_sem_lock();
+              qfill = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
+              flow_sem_unlock();
+              warning("warning: lost %u flows (%u packets) from %s, qsize %lu",
+                      seq - pr->seq[i], (seq - pr->seq[i]) / count,
+                      inet_ntoa(*(struct in_addr *)&s_addr), qfill);
+#else
               warning("warning: lost %u flows (%u packets) from %s",
-                      seq - pr->seq[i],
-                      (seq - pr->seq[i]) / (count > 1 ? count - 1 : count),
-                      inet_ntoa(remote_addr.sin_addr));
+                      seq - pr->seq[i], (seq - pr->seq[i]) / count,
+                      inet_ntoa(*(struct in_addr *)&s_addr));
+#endif
               break;
             }
           }
@@ -326,10 +530,10 @@ int main(int argc, char *argv[])
         output=ntohs(data5[i].output);
         src_as=ntohs(data5[i].src_as);
         dst_as=ntohs(data5[i].dst_as);
-        add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
+        add_stat(s_addr, data5[i].srcaddr, data5[i].dstaddr,
                  1, 0, bytes, input, output, src_as, dst_as, data5[i].prot,
                  data5[i].srcport, data5[i].dstport);
-        add_stat(remote_addr.sin_addr.s_addr,data5[i].srcaddr,data5[i].dstaddr,
+        add_stat(s_addr, data5[i].srcaddr, data5[i].dstaddr,
                  0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
                  data5[i].prot, data5[i].srcport, data5[i].dstport);
       }
@@ -345,8 +549,12 @@ int main(int argc, char *argv[])
       reload_acl();
 #endif
   }
+#if defined(WITH_RECEIVER) && !defined(WITH_THREADS)
+  if (shq)
+#endif
+    close(sockfd);
+  exitfunc();
   unlink(pidfile);
-  close(sockfd);
   return 0;
 }
 

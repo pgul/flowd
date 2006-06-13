@@ -4,7 +4,7 @@ CC=@CC@
 AWK=@AWK@
 COPT=-Wall -funsigned-char @DEFS@ -DCONFDIR=\"@sysconfdir@\" @CFLAGS@
 
-SRCS=flowd.c stat.c config.c @classsrc@ @perlsrc@
+SRCS=flowd.c stat.c config.c sem.c @classsrc@ @perlsrc@
 OBJS=${SRCS:.c=.o}
 
 .c.o:
@@ -35,6 +35,7 @@ flowd.o: flowd.c flowd.h Makefile
 acl.o: acl.c flowd.h Makefile
 stat.o: stat.c flowd.h Makefile
 config.o: config.c flowd.h Makefile
+sem.o: sem.c flowd.h Makefile
 getclass.o: getclass.c flowd.h Makefile
 flowperl.o: flowperl.c flowd.h Makefile
 

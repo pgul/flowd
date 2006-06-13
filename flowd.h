@@ -7,10 +7,10 @@
 #define PIDFILE		"/var/run/flowd.pid"
 #define MAXLOST		3000 /* ~1000 packets */
 #define MAXVRF		32
+#define RECVBUF		262144
+#define SHQSIZE		10000 /* pkts, bufsize ~2M */
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)
-#define MAXMACS		(16*256) /* size of hash-table */
-#define MAXCOLOIP	16
 #ifndef MAXPREFIX
 #define MAXPREFIX       24
 #endif
@@ -23,6 +23,16 @@
 #define MAPSIZE         (1<<MAXPREFIX)/(8/NBITS)
 #endif
 #define MAPKEY          (*(long *)"gul@")
+
+int flow_sem_init(void);
+int flow_sem_init_poster(void);
+int flow_sem_init_waiter(void);
+int flow_sem_post(void);
+int flow_sem_wait(void);
+int flow_sem_zero(void);
+int flow_sem_lock(void);
+int flow_sem_unlock(void);
+void flow_sem_destroy(void);
 
 #if NBITS>8
 typedef unsigned short classtype;
@@ -80,6 +90,15 @@ struct router_t {
   struct attrtype *attrhead, *attrtail;
   struct router_t *next;
 };
+
+struct shqueue_t {
+  u_long s_addr;
+  int psize;
+  char data[MTU];
+};
+
+#define SELFBUF		(sizeof(struct shqueue_t) * SHQSIZE)
+#define SHBUFSIZE	(SELFBUF + 2 * sizeof(unsigned long))
 
 extern struct router_t *routers;
 extern time_t last_write, last_reload;
