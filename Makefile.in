@@ -23,7 +23,7 @@ test:		test.c
 	$(CC) -g -Wall -o test -O2 -funsigned-char test.c -lpcap
 
 install:	all
-	install flowd $(prefix)/bin
+	install flowd $(prefix)/sbin
 	[ -f @sysconfdir@/flowd.conf ] || install flowd.conf @sysconfdir@
 	[ -d @mandir@/man8 ] || mkdir -p @mandir@/man8
 	install -m 644 flowd.8 @mandir@/man8/flowd.8
