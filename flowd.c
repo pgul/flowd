@@ -390,6 +390,7 @@ int main(int argc, char *argv[])
     } else if (child_pid == 0) {
       flow_sem_init_poster();
       recvpkts(NULL);
+      exitfunc();
       exit(0);
     } else {
       flow_sem_init_waiter();
@@ -425,10 +426,10 @@ int main(int argc, char *argv[])
       i = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
       flow_sem_unlock();
       debug(4, "Received %u v1-flows from %s (queue %u)",
-            count, inet_ntoa(*(struct in_addr *)&s_addr), i);
+            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr), i);
 #else
       debug(4, "Received %u v1-flows from %s",
-            count, inet_ntoa(*(struct in_addr *)&s_addr));
+            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr));
 #endif
       for (i=0; i<count; i++)
       {
@@ -480,10 +481,10 @@ int main(int argc, char *argv[])
       i = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
       flow_sem_unlock();
       debug(4, "Received %u flows from %s (seq %lu, queue %u)",
-            count, inet_ntoa(*(struct in_addr *)&s_addr), ntohl(head5->seq), i);
+            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr), ntohl(head5->seq), i);
 #else
       debug(4, "Received %u flows from %s (seq %lu)",
-            count, inet_ntoa(*(struct in_addr *)&s_addr), ntohl(head5->seq));
+            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr), ntohl(head5->seq));
 #endif
       if (pr) {
         unsigned seq = ntohl(head5->seq);
@@ -500,11 +501,11 @@ int main(int argc, char *argv[])
               flow_sem_unlock();
               warning("warning: lost %u flows (%u packets) from %s, qsize %lu",
                       seq - pr->seq[i], (seq - pr->seq[i]) / count,
-                      inet_ntoa(*(struct in_addr *)&s_addr), qfill);
+                      inet_ntoa(*(struct in_addr *)(void *)&s_addr), qfill);
 #else
               warning("warning: lost %u flows (%u packets) from %s",
                       seq - pr->seq[i], (seq - pr->seq[i]) / count,
-                      inet_ntoa(*(struct in_addr *)&s_addr));
+                      inet_ntoa(*(struct in_addr *)(void *)&s_addr));
 #endif
               break;
             }
