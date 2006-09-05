@@ -35,7 +35,7 @@ char mysql_table[256], mysql_utable[256];
 unsigned mysql_port;
 #endif
 struct router_t *routers;
-static struct router_t *cur_router;
+static struct router_t *cur_router, *old_routers;
 
 #ifdef DO_SNMP
 static unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
@@ -629,12 +629,7 @@ int config(char *name)
     free(linkhead);
   }
   linkhead = NULL;
-  for (cur_router=routers; cur_router;)
-  { freerouter(cur_router);
-    routers = cur_router;
-    cur_router = cur_router->next;
-    free(routers);
-  }
+  old_routers = routers;
   cur_router = routers = calloc(1, sizeof(struct router_t));
   cur_router->addr = (u_long)-1;
 #if NBITS>0
@@ -647,6 +642,12 @@ int config(char *name)
 #endif
   parse_file(f);
   fclose(f);
+  for (cur_router=old_routers; cur_router;)
+  { freerouter(cur_router);
+    routers = cur_router;
+    cur_router = cur_router->next;
+    free(old_routers);
+  }
 #if NBITS>0
   if (fromshmem && !preproc)
   { if (init_map())
@@ -925,8 +926,36 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
   }
   *s = p+1;
   if (router->data[oid] == NULL)
+  {
     /* do snmpwalk for the oid */
-    snmpwalk(router, oid);
+    if (snmpwalk(router, oid))
+    { /* snmpwalk failed, try to use data from old_routers */
+      struct router_t *prouter;
+      int i, varslen;
+      char *curvar;
+
+      for (prouter = old_routers; prouter; prouter = prouter->next)
+      { if (router->addr==prouter->addr)
+        {
+          if (prouter->data[oid])
+          {
+            varslen = 0;
+            for (i=0; i<prouter->nifaces[oid]; i++)
+              varslen += strlen(prouter->data[oid][i].val)+1;
+            router->data[oid] = malloc(i*sizeof(router->data[0][0])+varslen);
+            curvar=((char *)router->data[oid])+sizeof(router->data[0][0])*i;
+            for (i=0; i<prouter->nifaces[oid]; i++)
+            { router->data[oid][i].ifindex = prouter->data[oid][i].ifindex;
+              router->data[oid][i].val = curvar;
+              strcpy(curvar, prouter->data[oid][i].val);
+              curvar += strlen(curvar)+1;
+            }
+            router->nifaces[oid] = prouter->nifaces[oid];
+          }
+        }
+      }
+    }
+  }
   /* copy value to val string */
   if (**s == '\"')
   { strncpy(val, *s+1, sizeof(val));
