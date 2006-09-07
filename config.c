@@ -644,7 +644,7 @@ int config(char *name)
   fclose(f);
   for (cur_router=old_routers; cur_router;)
   { freerouter(cur_router);
-    routers = cur_router;
+    old_routers = cur_router;
     cur_router = cur_router->next;
     free(old_routers);
   }
