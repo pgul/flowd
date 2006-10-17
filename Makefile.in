@@ -26,7 +26,7 @@ install:	all
 	install flowd $(prefix)/sbin
 	[ -f @sysconfdir@/flowd.conf ] || install flowd.conf @sysconfdir@
 	[ -d @mandir@/man8 ] || mkdir -p @mandir@/man8
-	install -m 644 flowd.8 @mandir@/man8/flowd.8
+	install -m 644 flowd.8 @mandir@/man8
 
 clean:
 	rm -f *.o config.log config.cache config.status
