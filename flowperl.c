@@ -15,6 +15,7 @@
 
 char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
 PerlInterpreter *perl = NULL;
+static int plstart_ok, plstop_ok, plwrite_ok;
 
 #ifndef pTHX_
 #define pTHX_
@@ -25,11 +26,79 @@ PerlInterpreter *perl = NULL;
 
 void boot_DynaLoader (pTHX_ CV *);
 
+static void perl_warn_str(char *str)
+{
+  while (str && *str)
+  { char *cp = strchr (str, '\n');
+    char c  = 0;
+    if (cp)
+    { c = *cp;
+      *cp = 0;
+    }
+    error("Perl error: %s", str);
+    if (!cp)
+      break;
+    *cp = c;
+    str = cp + 1;
+  }
+}
+
+static void perl_warn_sv (SV *sv)
+{ STRLEN n_a;
+  char *str = (char *)SvPV(sv, n_a);
+  perl_warn_str(str);
+}
+
+static XS(perl_warn)
+{
+  dXSARGS;
+  if (items == 1) perl_warn_sv(ST(0));
+    XSRETURN_EMPTY;
+}
+
+/* handle multi-line perl eval error message */
+static void sub_err(char *sub)
+{
+  STRLEN len;
+  char *s, *p;
+  p = SvPV(ERRSV, len);
+  if (len)
+  { s = malloc(len+1);
+    strncpy(s, p, len);
+    s[len] = '\0';
+  }
+  else
+    s = strdup("(empty error message)");
+  if ((p = strchr(s, '\n')) == NULL || p[1] == '\0')
+  { if (p) *p = '\0';
+    error("Perl %s error: %s", sub, s);
+  }
+  else
+  {
+    error("Perl %s error below:", sub);
+    while ( *p && (*p != '\n' || *(p+1)) )
+    { char *r = strchr(p, '\n');
+      if (r)
+      { *r = 0;
+        error("  %s", p);
+        p = r + 1;
+      }
+      else
+      {
+        error("  %s", p);
+        break;
+      }
+    }
+  }
+  free(s);
+}
+
 static void xs_init(pTHX)
 {
   static char *file = __FILE__;
   dXSUB_SYS;
   newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+  newXS("flowd_warn", perl_warn, file);
 }
 
 void exitperl(void)
@@ -45,9 +114,12 @@ void exitperl(void)
 int PerlStart(char *perlfile)
 {
   int rc;
-  char *perlargs[]={"", "", NULL};
+  static char *perlargs[]={"", NULL, NULL, NULL};
+  char cmd[256];
+  SV *sv;
 
-  perlargs[1] = perlfile;
+  perlargs[1] = "-e";
+  perlargs[2] = "0";
   if (access(perlfile, R_OK))
   { char errstr[256];
 #ifdef HAVE_STRERROR_R
@@ -72,15 +144,38 @@ int PerlStart(char *perlfile)
     perl=NULL;
     return 1;
   }
+  /* Set warn and die hooks */
+  if (PL_warnhook) SvREFCNT_dec (PL_warnhook);
+  if (PL_diehook ) SvREFCNT_dec (PL_diehook );
+  PL_warnhook = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
+  PL_diehook  = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
+  /* run main program body */
+  snprintf(cmd, sizeof(cmd), "do '%s'; $@ ? $@ : '';", perlfile);
+  sv = perl_eval_pv (cmd, TRUE);
+  if (!SvPOK(sv)) {
+    error("Syntax error in internal perl expression: %s", cmd);
+    rc = 1;
+  } else if (SvTRUE (sv)) {
+    perl_warn_sv (sv);
+    rc = 1;
+  }
+  if (rc) {
+    perl_destruct(perl);
+    perl_free(perl);
+    perl = NULL;
+    return 0;
+  }
+  plstart_ok = plstop_ok = plwrite_ok = 0;
+  if (perl_get_cv("startwrite", FALSE)) plstart_ok    = 1;
+  if (perl_get_cv("stopwrite",  FALSE)) plstop_ok     = 1;
+  if (perl_get_cv("write",      FALSE)) plwrite_ok    = 1;
   atexit(exitperl);
   return 0;
 }
 
 void plstart(void)
 {
-  STRLEN n_a;
-
-  if (perl)
+  if (perl && plstart_ok)
   {
     dSP;
     ENTER;
@@ -93,15 +188,13 @@ void plstart(void)
     FREETMPS;
     LEAVE;
     if (SvTRUE(ERRSV))
-      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+      sub_err("startwrite");
   }
 }
 
 void plstop(void)
 {
-  STRLEN n_a;
-
-  if (perl)
+  if (perl && plstop_ok)
   {
     dSP;
     ENTER;
@@ -114,7 +207,7 @@ void plstop(void)
     FREETMPS;
     LEAVE;
     if (SvTRUE(ERRSV))
-      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+      sub_err("stopwrite");
   }
 }
 
@@ -128,9 +221,8 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
   SV *svbytesin, *svbytesout;
 #endif
   SV *svuser;
-  STRLEN n_a;
 
-  if (perl)
+  if (perl && plwrite_ok)
   {
     dSP;
     svuser     = perl_get_sv("user",      TRUE);
@@ -160,7 +252,7 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
     FREETMPS;
     LEAVE;
     if (SvTRUE(ERRSV))
-      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+      sub_err("write");
   }
 }
 

@@ -5,4 +5,3 @@
 - change listen addr/port on reread config if needed (with and without
   receiver process)
 - drop privileges after bind()
-- change perl error handling
