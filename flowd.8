@@ -41,19 +41,19 @@ Dump preprocessed config and exit.
 .SH SIGNALS
 .TP 10
 .BI SIGHUP
+Causes \fIflowd\fP to write collected statistics and reread config.
+.TP 10
+.BI SIGALRM
 Causes \fIflowd\fP to write collected statistics.
 .TP 10
 .BI SIGUSR1
 Causes \fIflowd\fP to reread access-list.
 .TP 10
 .BI SIGUSR2
-Causes \fIflowd\fP to write collected statistics and reread config.
+Causes \fIflowd\fP to write 100M of received traffic to snap-file.
 .TP 10
 .BI SIGINT
 Causes \fIflowd\fP to restart itself.
-.TP 10
-.BI SIGINFO
-Causes \fIflowd\fP to write 100M of received traffic to snap-file.
 
 .SH AUTHORS
 Pavel Gulchouck <gul@gul.kiev.ua>.

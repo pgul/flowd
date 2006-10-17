@@ -20,10 +20,6 @@
 #endif
 #include "flowd.h"
 
-#ifndef SIGINFO
-#define SIGINFO SIGIO
-#endif
-
 int  sockfd, verbose, preproc;
 time_t last_write, last_reload;
 long snap_traf;
@@ -112,7 +108,7 @@ static void hup(int signo)
     exit(0);
   }
 #endif
-  if (signo==SIGHUP || signo==SIGTERM || signo==SIGINT || signo==SIGUSR2)
+  if (signo==SIGHUP || signo==SIGTERM || signo==SIGINT || signo==SIGALRM)
     write_stat();
   if (signo==SIGTERM)
   { unlink(pidfile);
@@ -123,13 +119,13 @@ static void hup(int signo)
   if (signo==SIGUSR1)
     reload_acl();
 #endif
-  if (signo==SIGUSR2)
+  if (signo==SIGHUP)
     if (config(confname))
     { error("Config error, exiting!");
       exitfunc();
       exit(1);
     }
-  if (signo==SIGINFO)
+  if (signo==SIGUSR2)
   { /* snap 100M of traffic */
     if (fsnap)
     { fclose(fsnap);
@@ -336,7 +332,7 @@ int main(int argc, char *argv[])
   signal(SIGUSR2, hup);
   signal(SIGINT,  hup);
   signal(SIGTERM, hup);
-  signal(SIGINFO, hup);
+  signal(SIGALRM, hup);
 #if NBITS>0
   if (reload_acl())
   { fprintf(stderr, "reload acl error!\n");

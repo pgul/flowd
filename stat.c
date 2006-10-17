@@ -17,10 +17,6 @@
 #endif
 #include "flowd.h"
 
-#ifndef SIGINFO
-#define SIGINFO SIGIO
-#endif
-
 extern long snap_traf;
 extern FILE *fsnap;
 
@@ -45,12 +41,12 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   dst_ip = ntohl(dstip);
   flowsrc = ntohl(src);
   sigemptyset(&set);
-  sigaddset(&set, SIGINFO);
   sigaddset(&set, SIGUSR1);
   sigaddset(&set, SIGUSR2);
   sigaddset(&set, SIGHUP);
   sigaddset(&set, SIGINT);
   sigaddset(&set, SIGTERM);
+  sigaddset(&set, SIGALRM);
   sigprocmask(SIG_BLOCK, &set, &oset);
 #if NBITS>0
   src_class=find_mask(src_ip);
