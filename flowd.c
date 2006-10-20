@@ -21,8 +21,7 @@
 #include "flowd.h"
 
 int  sockfd, verbose, preproc;
-time_t last_write, last_reload;
-long snap_traf;
+time_t last_write, last_reload, snap_start;
 FILE *fsnap;
 char *saved_argv[20];
 char *confname;
@@ -126,17 +125,21 @@ static void hup(int signo)
       exit(1);
     }
   if (signo==SIGUSR2)
-  { /* snap 100M of traffic */
+  { /* snap traffic during SNAP_TIME */
+    time_t curtime;
+
+    curtime=time(NULL);
     if (fsnap)
     { fclose(fsnap);
       fsnap=fopen(snapfile, "a");
     } else
-    { time_t curtime=time(NULL);
-      fsnap=fopen(snapfile, "a");
-      if (fsnap) fprintf(fsnap, "\n\n----- %s\n", ctime(&curtime));
+    { fsnap=fopen(snapfile, "a");
+      if (fsnap==NULL)
+        warning("Cannot open %s: %s", snapfile, strerror(errno));
+      else
+        fprintf(fsnap, "\n\n----- %s\n", ctime(&curtime));
     }
-    if (fsnap==NULL) snap_traf=0;
-    else snap_traf=100*1024*1024; 
+    if (fsnap) snap_start=curtime;
   }
   if (signo==SIGINT)
   { /* restart myself */

@@ -11,6 +11,7 @@
 #define SHQSIZE		10000 /* pkts, bufsize ~2M */
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)
+#define SNAP_TIME	60
 #ifndef MAXPREFIX
 #define MAXPREFIX       24
 #endif

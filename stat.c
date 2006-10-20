@@ -17,7 +17,7 @@
 #endif
 #include "flowd.h"
 
-extern long snap_traf;
+extern time_t snap_start;
 extern FILE *fsnap;
 
 void add_stat(u_long src, u_long srcip, u_long dstip, int in,
@@ -118,10 +118,9 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
         *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3],
 	pa->fallthru ? " (fallthru)" : "");
     fflush(fsnap);
-    if (!pa->fallthru && (snap_traf-=len) <= 0)
+    if (snap_start + SNAP_TIME < time(NULL))
     { fclose(fsnap);
       fsnap = NULL;
-      snap_traf=0;
     }
   }
 #if NBITS>0
