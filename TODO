@@ -1,5 +1,3 @@
-- perl hook on flow packet receive: possibility to change ua/world
-  class depends of in/out interface
 - documentation
 - change listen addr/port on reread config if needed (with and without
   receiver process)

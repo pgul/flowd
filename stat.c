@@ -33,9 +33,14 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   u_short local_if, remote_if, remote_as;
   u_short lport, rport;
   struct attrtype *pa;
-  struct router_t *pr;
+  struct router_t *pr = NULL;
   sigset_t set, oset;
   u_long src_ip, dst_ip;
+#ifdef DO_PERL
+  char *p;
+  static struct attrtype fakeattr;
+  struct linktype *pl;
+#endif
 
   src_ip = ntohl(srcip);
   dst_ip = ntohl(dstip);
@@ -51,6 +56,32 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
 #if NBITS>0
   src_class=find_mask(src_ip);
   dst_class=find_mask(dst_ip);
+#endif
+#ifdef DO_PERL
+  p = pl_recv_pkt(&src, &srcip, &dstip, &in, &nexthop, &len, &input, &output,
+                  &src_as, &dst_as, &proto, &srcport, &dstport
+#if NBITS>0
+                  , &src_class, &dst_class
+#endif
+                 );
+  src_ip  = ntohl(srcip);
+  dst_ip  = ntohl(dstip);
+  flowsrc = ntohl(src);
+  if (p)
+  {
+    for (pl=linkhead; pl; pl=pl->next)
+      if (strcmp(p, pl->name) == 0)
+        break;
+    if (pl == NULL)
+    { pl = calloc(sizeof(struct linktype), 1);
+      pl->next = linkhead;
+      strncpy(pl->name, p, sizeof(pl->name)-1);
+      linkhead = pl;
+    }
+    pa = &fakeattr;
+    pa->link = pl;
+    goto foundattr;
+  }
 #endif
   for (pr=routers; pr; pr=pr->next)
   {
@@ -98,25 +129,26 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
     {
       if (!pa->link && !pa->fallthru)
         break; // ignore
+foundattr:
     if (fsnap /*&& !pa->fallthru*/)
     { 
       fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
 #if NBITS>0
-	      ".%s2%s"
+              ".%s2%s"
 #endif
-	      ".%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
+              ".%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
         (in ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
         pa->link->name,
 #if NBITS>0
-	uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
+        uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
 #endif
         ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output,
         *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3],
-	pa->fallthru ? " (fallthru)" : "");
+        pa->fallthru ? " (fallthru)" : "");
     fflush(fsnap);
     if (snap_start + SNAP_TIME < time(NULL))
     { fclose(fsnap);

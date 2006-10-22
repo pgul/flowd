@@ -139,6 +139,14 @@ void exitperl(void);
 int  PerlStart(char *perlfile);
 void plstart(void);
 void plstop(void);
+char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
+                  u_long *nexthop, u_long *len, u_short *input, u_short *output,
+                  u_short *src_as, u_short *dst_as, u_short *proto,
+                  u_short *src_port, u_short *dst_port
+#if NBITS>0
+                  , u_short *src_class, u_short *dst_class
+#endif
+                 );
 #if NBITS>0
 void plwrite(char *user, char *src, char *dst, char *direct, unsigned int bytes);
 #else
@@ -147,13 +155,16 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out);
 void perl_call(char *file, char *func, char **args);
 
 extern char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
+extern char perlrcv[256];
 #else
 #define plstart()
 #define plstop()
 #if NBITS>0
 #define plwrite(user, src, dst, direct, bytes)
+#define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port, src_class, dst_class)
 #else
 #define plwrite(user, bytes_in, bytes_out)
+#define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port)
 #endif
 #endif
 

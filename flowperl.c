@@ -13,9 +13,9 @@
 #endif
 #include "flowd.h"
 
-char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
+char perlfile[256], perlstart[256], perlwrite[256], perlstop[256], perlrcv[256];
 PerlInterpreter *perl = NULL;
-static int plstart_ok, plstop_ok, plwrite_ok;
+static int plstart_ok, plstop_ok, plwrite_ok, plrcv_ok;
 
 #ifndef pTHX_
 #define pTHX_
@@ -169,6 +169,7 @@ int PerlStart(char *perlfile)
   if (perl_get_cv("startwrite", FALSE)) plstart_ok    = 1;
   if (perl_get_cv("stopwrite",  FALSE)) plstop_ok     = 1;
   if (perl_get_cv("write",      FALSE)) plwrite_ok    = 1;
+  if (perl_get_cv("recv_pkt",   FALSE)) plrcv_ok      = 1;
   atexit(exitperl);
   return 0;
 }
@@ -254,6 +255,157 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
     if (SvTRUE(ERRSV))
       sub_err("write");
   }
+}
+
+char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
+                  u_long *nexthop, u_long *len, u_short *input, u_short *output,
+                  u_short *src_as, u_short *dst_as, u_short *proto,
+                  u_short *src_port, u_short *dst_port
+#if NBITS>0
+                  , u_short *src_class, u_short *dst_class
+#endif
+                 )
+{
+  u_long addr;
+  char *prc, *p;
+  static char pr[256];
+  struct protoent *pe;
+  STRLEN n_a;
+  SV *svsrc, *svsrcip, *svdstip, *svin, *svnexthop, *svlen, *svinput, *svoutput;
+  SV *svsrc_as, *svdst_as, *svproto, *svsrc_port, *svdst_port, *svret;
+#if NBITS>0
+  SV *svsrc_class, *svdst_class;
+#endif
+
+  prc = NULL;
+
+  if (perl && plrcv_ok)
+  {
+    dSP;
+    svsrc       = perl_get_sv("router",    TRUE);
+    svsrcip     = perl_get_sv("srcip",     TRUE);
+    svdstip     = perl_get_sv("dstip",     TRUE);
+    svin        = perl_get_sv("direction", TRUE);
+    svnexthop   = perl_get_sv("nexthop",   TRUE);
+    svlen       = perl_get_sv("len",       TRUE);
+    svinput     = perl_get_sv("input",     TRUE);
+    svoutput    = perl_get_sv("output",    TRUE);
+    svsrc_as    = perl_get_sv("src_as",    TRUE);
+    svdst_as    = perl_get_sv("dst_as",    TRUE);
+    svproto     = perl_get_sv("proto",     TRUE);
+    svsrc_port  = perl_get_sv("src_port",  TRUE);
+    svdst_port  = perl_get_sv("dst_port",  TRUE);
+#if NBITS>0
+    svsrc_class = perl_get_sv("src_class", TRUE);
+    svdst_class = perl_get_sv("dst_class", TRUE);
+#endif
+    sv_setpv(svsrc,       inet_ntoa(*(struct in_addr *)src));
+    sv_setpv(svsrcip,     inet_ntoa(*(struct in_addr *)srcip));
+    sv_setpv(svdstip,     inet_ntoa(*(struct in_addr *)dstip));
+    sv_setpv(svin,        (*in ? "in" : "out"));
+    sv_setpv(svnexthop,   inet_ntoa(*(struct in_addr *)nexthop));
+    sv_setuv(svlen,       *len      );
+    sv_setuv(svinput,     *input    );
+    sv_setuv(svoutput,    *output   );
+    sv_setuv(svsrc_as,    ntohs(*src_as));
+    sv_setuv(svdst_as,    ntohs(*dst_as));
+    pe = getprotobynumber(*proto);
+    if (pe) sv_setpv(svproto, pe->p_name);
+    else    sv_setuv(svproto, *proto);
+    sv_setuv(svsrc_port,  ntohs(*src_port));
+    sv_setuv(svdst_port,  ntohs(*dst_port));
+#if NBITS>0
+    sv_setpv(svsrc_class, uaname[uaindex[*src_class]]);
+    sv_setpv(svdst_class, uaname[uaindex[*dst_class]]);
+#endif
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    PUTBACK;
+    perl_call_pv(perlrcv, G_EVAL|G_SCALAR);
+    SPAGAIN;
+    svret=POPs;
+    if (SvTRUE(svret))
+      prc = strdup(SvPV(svret, n_a));
+    else
+      prc = NULL;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+    if (SvTRUE(ERRSV))
+      sub_err("recv_pkt");
+    else 
+    { if (n_a == 0 && prc)
+      { free(prc);
+        prc = NULL;
+      }
+      if (prc)
+      {
+        strncpy(pr, prc, sizeof(pr)-1);
+        pr[sizeof(pr)-1] = '\0';
+        free(prc);
+      }
+      /* update variables */
+      p = SvPV(perl_get_sv("router", FALSE), n_a);
+      if (n_a && p && inet_aton(p, (struct in_addr *)&addr) != -1) *src = addr;
+      p = SvPV(perl_get_sv("srcip", FALSE), n_a);
+      if (n_a && p && inet_aton(p, (struct in_addr *)&addr)) *srcip = addr;
+      p = SvPV(perl_get_sv("dstip", FALSE), n_a);
+      if (n_a && p && inet_aton(p, (struct in_addr *)&addr)) *dstip = addr;
+      p = SvPV(perl_get_sv("direction", FALSE), n_a);
+      if (n_a && p) {
+        if (strcmp(p, "in") == 0) *in = 1;
+        else if (strcmp(p, "out") == 0) *in = 0;
+      }
+      p = SvPV(perl_get_sv("nexthop", FALSE), n_a);
+      if (n_a && p && inet_aton(p, (struct in_addr *)&addr)) *nexthop = addr;
+      p = SvPV(perl_get_sv("len", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *len = atol(p);
+      p = SvPV(perl_get_sv("input", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *input = atoi(p);
+      p = SvPV(perl_get_sv("output", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *output = atoi(p);
+      p = SvPV(perl_get_sv("src_as", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *src_as = atoi(p);
+      p = SvPV(perl_get_sv("dst_as", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *src_as = atoi(p);
+      p = SvPV(perl_get_sv("proto", FALSE), n_a);
+      if (n_a && p)
+      {
+        if ((pe = getprotobyname(p)) != NULL)
+          *proto = pe->p_proto;
+        else if (isdigit(*p))
+          *proto = atoi(p);
+      }
+      p = SvPV(perl_get_sv("src_port", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *src_port = atoi(p);
+      p = SvPV(perl_get_sv("dst_port", FALSE), n_a);
+      if (n_a && p && isdigit(*p)) *dst_port = atoi(p);
+#if NBITS>0
+      p = SvPV(perl_get_sv("src_class", FALSE), n_a);
+      if (n_a && p && strcmp(p, uaname[uaindex[*src_class]]))
+      { int i;
+        for (i=0; i<NCLASSES; i++)
+        { if (uaindex[i]==i && strcmp(p, uaname[i]) == 0)
+          { *src_class = i;
+            break;
+          }
+        }
+      }
+      p = SvPV(perl_get_sv("dst_class", FALSE), n_a);
+      if (n_a && p && strcmp(p, uaname[uaindex[*dst_class]]))
+      { int i;
+        for (i=0; i<NCLASSES; i++)
+        { if (uaindex[i]==i && strcmp(p, uaname[i]) == 0)
+          { *dst_class = i;
+            break;
+          }
+        }
+      }
+#endif
+    }
+  }
+  return prc ? pr : NULL;
 }
 
 void perl_call(char *file, char *func, char **args)
