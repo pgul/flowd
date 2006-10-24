@@ -132,14 +132,19 @@ static void hup(int signo)
     if (fsnap)
     { fclose(fsnap);
       fsnap=fopen(snapfile, "a");
+      if (fsnap==NULL)
+        warning("Cannot open %s: %s", snapfile, strerror(errno));
+      else
+        snap_start += SNAP_TIME;
     } else
     { fsnap=fopen(snapfile, "a");
       if (fsnap==NULL)
         warning("Cannot open %s: %s", snapfile, strerror(errno));
       else
-        fprintf(fsnap, "\n\n----- %s\n", ctime(&curtime));
+      { fprintf(fsnap, "\n\n----- %s\n", ctime(&curtime));
+        snap_start = curtime;
+      }
     }
-    if (fsnap) snap_start=curtime;
   }
   if (signo==SIGINT)
   { /* restart myself */
