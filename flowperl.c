@@ -260,7 +260,7 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
 char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
                   u_long *nexthop, u_long *len, u_short *input, u_short *output,
                   u_short *src_as, u_short *dst_as, u_short *proto,
-                  u_short *src_port, u_short *dst_port
+                  u_short *src_port, u_short *dst_port, u_long *pkts
 #if NBITS>0
                   , u_short *src_class, u_short *dst_class
 #endif

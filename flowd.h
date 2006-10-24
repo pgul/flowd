@@ -120,7 +120,7 @@ extern int  uaindex[NCLASSES];
 void add_stat(u_long flowsrc, u_long srcaddr, u_long dstaddr, int in,
               u_long nexthop, u_long bytes, u_short input, u_short output,
               u_short src_as, u_short dst_as, u_short proto,
-              u_short srcport, u_short dstport);
+              u_short srcport, u_short dstport, u_long pkts);
 void write_stat(void);
 int  config(char *name);
 void debug(int level, char *format, ...);
@@ -142,7 +142,7 @@ void plstop(void);
 char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
                   u_long *nexthop, u_long *len, u_short *input, u_short *output,
                   u_short *src_as, u_short *dst_as, u_short *proto,
-                  u_short *src_port, u_short *dst_port
+                  u_short *src_port, u_short *dst_port, u_long *pkts
 #if NBITS>0
                   , u_short *src_class, u_short *dst_class
 #endif
@@ -161,10 +161,10 @@ extern char perlrcv[256];
 #define plstop()
 #if NBITS>0
 #define plwrite(user, src, dst, direct, bytes)
-#define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port, src_class, dst_class)
+#define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port, pkts, src_class, dst_class)
 #else
 #define plwrite(user, bytes_in, bytes_out)
-#define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port)
+#define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port, pkts)
 #endif
 #endif
 

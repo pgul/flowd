@@ -603,10 +603,11 @@ int config(char *name)
   mapkey=MAPKEY;
 #endif
 #ifdef DO_PERL
-  strcpy(perlfile,     "flowd.pl");
+  strcpy(perlfile,     "flowd.pl"  );
   strcpy(perlstart,    "startwrite");
   strcpy(perlwrite,    "write"     );
   strcpy(perlstop,     "stopwrite" );
+  strcpy(perlrcv,      "recv_pkt"  );
 #endif
 #ifdef DO_MYSQL
   mysql_user[0] = mysql_pwd[0] = mysql_host[0] = mysql_socket[0] = '\0';

@@ -23,7 +23,7 @@ extern FILE *fsnap;
 void add_stat(u_long src, u_long srcip, u_long dstip, int in,
               u_long nexthop, u_long len, u_short input, u_short output,
               u_short src_as, u_short dst_as, u_short proto,
-              u_short srcport, u_short dstport)
+              u_short srcport, u_short dstport, u_long pkts)
 {
   u_long local=0, remote=0, flowsrc;
 #if NBITS>0
@@ -59,7 +59,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
 #endif
 #ifdef DO_PERL
   p = pl_recv_pkt(&src, &srcip, &dstip, &in, &nexthop, &len, &input, &output,
-                  &src_as, &dst_as, &proto, &srcport, &dstport
+                  &src_as, &dst_as, &proto, &srcport, &dstport, &pkts
 #if NBITS>0
                   , &src_class, &dst_class
 #endif
@@ -136,7 +136,7 @@ foundattr:
 #if NBITS>0
               ".%s2%s"
 #endif
-              ".%s) %lu bytes (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
+              ".%s) %lu bytes %lu pkts (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
         (in ? "<-" : "->"),
         ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
         ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
@@ -144,7 +144,7 @@ foundattr:
 #if NBITS>0
         uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
 #endif
-        ((in^pa->reverse) ? "in" : "out"), len, src_as, dst_as,
+        ((in^pa->reverse) ? "in" : "out"), len, pkts, src_as, dst_as,
         ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
         input, output,
         *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3],

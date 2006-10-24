@@ -437,18 +437,19 @@ int main(int argc, char *argv[])
 #endif
       for (i=0; i<count; i++)
       {
-        unsigned long bytes;
+        unsigned long bytes, pkts;
         unsigned short input, output;
 
         bytes=ntohl(data1[i].bytes);
+        pkts=ntohl(data1[i].pkts);
         input=ntohs(data1[i].input);
         output=ntohs(data1[i].output);
         add_stat(s_addr, data1[i].srcaddr, data1[i].dstaddr,
                  1, 0, bytes, input, output, 0, 0, data1[i].prot,
-                 data1[i].srcport, data1[i].dstport);
+                 data1[i].srcport, data1[i].dstport, pkts);
         add_stat(s_addr, data1[i].srcaddr, data1[i].dstaddr,
                  0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot,
-                 data1[i].srcport, data1[i].dstport);
+                 data1[i].srcport, data1[i].dstport, pkts);
       }
     }
     else if (ver==5)
@@ -527,20 +528,21 @@ int main(int argc, char *argv[])
       data5 = (struct data5 *)(head5+1);
       for (i=0; i<count; i++)
       {
-        unsigned long bytes;
+        unsigned long bytes, pkts;
         unsigned short input, output, src_as, dst_as;
 
         bytes=ntohl(data5[i].bytes);
+        pkts=ntohl(data5[i].pkts);
         input=ntohs(data5[i].input);
         output=ntohs(data5[i].output);
         src_as=ntohs(data5[i].src_as);
         dst_as=ntohs(data5[i].dst_as);
         add_stat(s_addr, data5[i].srcaddr, data5[i].dstaddr,
                  1, 0, bytes, input, output, src_as, dst_as, data5[i].prot,
-                 data5[i].srcport, data5[i].dstport);
+                 data5[i].srcport, data5[i].dstport, pkts);
         add_stat(s_addr, data5[i].srcaddr, data5[i].dstaddr,
                  0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
-                 data5[i].prot, data5[i].srcport, data5[i].dstport);
+                 data5[i].prot, data5[i].srcport, data5[i].dstport, pkts);
       }
     }
     else
