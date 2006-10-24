@@ -54,4 +54,5 @@ sub recv_pkt
 # $src_as, $dst_as, $proto, $src_port, $dst_port, $src_class, $dst_class
 # Any of this variables can be changed
 # Return link name or empty string
+	return '';
 }
