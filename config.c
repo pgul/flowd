@@ -533,7 +533,8 @@ static int parse_file(FILE *f)
             break;
           }
           if (*p==')') break;
-          if (*p==',') p++;
+          if (*p==',')
+            for (p++; *p && isspace(*p); p++);
           if (i==sizeof(perlincargs)/sizeof(perlincargs[0])-1)
           { warning("Too many args in perl_include, rest ignored");
             break;
