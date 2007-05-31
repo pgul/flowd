@@ -2,3 +2,5 @@
 - change listen addr/port on reread config if needed (with and without
   receiver process)
 - drop privileges after bind()
+- netflow v9
+- "snap" option in config line
