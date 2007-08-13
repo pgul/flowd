@@ -87,90 +87,92 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   {
     if (pr->addr != (u_long)-1 && pr->addr != src)
       continue;
-  for (pa=pr->attrhead; pa; pa=pa->next)
-  { if (in)
-    { local=dst_ip;
-      remote=src_ip;
-      remote_if=input;
-      local_if=output;
-      remote_as=src_as;
+    for (pa=pr->attrhead; pa; pa=pa->next)
+    { if (in)
+      { local=dst_ip;
+        remote=src_ip;
+        remote_if=input;
+        local_if=output;
+        remote_as=src_as;
 #if NBITS>0
-      remote_class=src_class;
+        remote_class=src_class;
 #endif
-      lport=ntohs(dstport);
-      rport=ntohs(srcport);
-    } else
-    { local=src_ip;
-      remote=dst_ip;
-      remote_if=output;
-      local_if=input;
-      remote_as=dst_as;
+        lport=ntohs(dstport);
+        rport=ntohs(srcport);
+      } else
+      { local=src_ip;
+        remote=dst_ip;
+        remote_if=output;
+        local_if=input;
+        remote_as=dst_as;
 #if NBITS>0
-      remote_class=dst_class;
+        remote_class=dst_class;
 #endif
-      lport=ntohs(srcport);
-      rport=ntohs(dstport);
-    }
-    if ((((flowsrc & pa->srcmask)==pa->src) == (pa->not==0)) &&
-         (pa->ip==(u_long)-1      || (remote & pa->mask)==pa->ip) &&
-         (pa->remote==(u_long)-1  || (local  & pa->remotemask)==pa->remote) &&
-         (pa->in==-1              || pa->in==(in^pa->reverse)) &&
-         (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
-         (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
-         (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
-         (pa->liface==(u_short)-1 || (pa->liface==local_if)) &&
+        lport=ntohs(srcport);
+        rport=ntohs(dstport);
+      }
+      if ((((flowsrc & pa->srcmask)==pa->src) == (pa->not==0)) &&
+           (pa->ip==(u_long)-1      || (remote & pa->mask)==pa->ip) &&
+           (pa->remote==(u_long)-1  || (local  & pa->remotemask)==pa->remote) &&
+           (pa->in==-1              || pa->in==(in^pa->reverse)) &&
+           (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
+           (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
+           (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
+           (pa->liface==(u_short)-1 || (pa->liface==local_if)) &&
 #if NBITS>0
-         (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
+           (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
 #endif
-         (pa->proto==(u_short)-1  || pa->proto==proto) &&
-         (pa->port1==(u_short)-1  || (pa->port1<=lport && pa->port2>=lport)) &&
-         (pa->lport1==(u_short)-1 || (pa->lport1<=rport && pa->lport2>=rport))
-        )
-    {
-      if (!pa->link && !pa->fallthru)
-        break; // ignore
+           (pa->proto==(u_short)-1  || pa->proto==proto) &&
+           (pa->port1==(u_short)-1 || (pa->port1<=lport && pa->port2>=lport)) &&
+           (pa->lport1==(u_short)-1 || (pa->lport1<=rport && pa->lport2>=rport))
+          )
+      {
+        if (!pa->link && !pa->fallthru)
+          break; // ignore
 foundattr:
-    if (fsnap /*&& !pa->fallthru*/)
-    { 
-      fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
+        if (fsnap /*&& !pa->fallthru*/)
+        { 
+          fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
 #if NBITS>0
-              ".%s2%s"
+                  ".%s2%s"
 #endif
-              ".%s) %lu bytes %lu pkts (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
-        (in ? "<-" : "->"),
-        ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
-        ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
-        pa->link->name,
+                  ".%s) %lu bytes %lu pkts (AS%u->AS%u, nexthop %u.%u.%u.%u, if %u->%u, router %u.%u.%u.%u)%s\n",
+            (in ? "<-" : "->"),
+            ((char *)&srcip)[0], ((char *)&srcip)[1], ((char *)&srcip)[2], ((char *)&srcip)[3],
+            ((char *)&dstip)[0], ((char *)&dstip)[1], ((char *)&dstip)[2], ((char *)&dstip)[3],
+            pa->link->name,
 #if NBITS>0
-        uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
+            uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
 #endif
-        ((in^pa->reverse) ? "in" : "out"), len, pkts, src_as, dst_as,
-        ((char *)&nexthop)[0], ((char *)&nexthop)[1], ((char *)&nexthop)[2], ((char *)&nexthop)[3],
-        input, output,
-        *((char *)&src),((char *)&src)[1],((char *)&src)[2],((char *)&src)[3],
-        pa->fallthru ? " (fallthru)" : "");
-    fflush(fsnap);
-    if (snap_start + SNAP_TIME < time(NULL))
-    { fclose(fsnap);
-      fsnap = NULL;
+            ((in^pa->reverse) ? "in" : "out"), len, pkts, src_as, dst_as,
+            ((char *)&nexthop)[0], ((char *)&nexthop)[1],
+            ((char *)&nexthop)[2], ((char *)&nexthop)[3],
+            input, output,
+            ((char *)&src)[0], ((char *)&src)[1],
+            ((char *)&src)[2], ((char *)&src)[3],
+            pa->fallthru ? " (fallthru)" : "");
+          fflush(fsnap);
+          if (snap_start + SNAP_TIME < time(NULL))
+          { fclose(fsnap);
+            fsnap = NULL;
+          }
+        }
+#if NBITS>0
+        src_ua=uaindex[src_class];
+        dst_ua=uaindex[dst_class];
+#endif
+        if ((pa->link->bytes[in^pa->reverse]
+#if NBITS>0
+                            [src_ua][dst_ua]
+#endif
+                             +=len)>=0xf0000000lu)
+          write_stat();
+        if (!pa->fallthru)
+          break;
+      }
     }
-  }
-#if NBITS>0
-  src_ua=uaindex[src_class];
-  dst_ua=uaindex[dst_class];
-#endif
-  if ((pa->link->bytes[in^pa->reverse]
-#if NBITS>0
-			  [src_ua][dst_ua]
-#endif
-			  +=len)>=0xf0000000lu)
-    write_stat();
-  if (!pa->fallthru)
-    break;
-    }
-  }
-  if (pa)
-    break;
+    if (pa)
+      break;
   }
   sigprocmask(SIG_SETMASK, &oset, NULL);
 }
