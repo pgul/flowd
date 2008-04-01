@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <errno.h>
 #include <time.h>
 #include <signal.h>
 #include <sys/socket.h>
@@ -328,7 +329,8 @@ void write_stat(void)
 
   last_write=time(NULL);
   fout = fopen(logname, "a");
-  if (fout==NULL) return;
+  if (fout==NULL)
+    error("Cannot open log-file %s: %s!", logname, strerror(errno));
   plstart();
 #ifdef DO_MYSQL
   tm_now=localtime(&last_write);
@@ -358,7 +360,7 @@ void write_stat(void)
   *p='\0';
 #endif
 #endif
-  fprintf(fout, "----- %s", ctime(&last_write));
+  if (fout) fprintf(fout, "----- %s", ctime(&last_write));
   for (pl=linkhead; pl; pl=pl->next)
   { 
 #if NBITS>0
@@ -508,7 +510,8 @@ void write_stat(void)
               }
             }
 #endif
-            fprintf(fout, "%s"
+            if (fout)
+              fprintf(fout, "%s"
 #if NBITS>0
                     ".%s2%s.%s: %lu bytes"
 #else
@@ -529,8 +532,10 @@ void write_stat(void)
 #endif
           }
   }
-  fputs("\n", fout);
-  fclose(fout);
+  if (fout)
+  { fputs("\n", fout);
+    fclose(fout);
+  }
   plstop();
 #ifdef DO_MYSQL
   if (conn) do_disconnect(conn);
