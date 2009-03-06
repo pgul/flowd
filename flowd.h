@@ -152,13 +152,14 @@ void plwrite(char *user, char *src, char *dst, char *direct, unsigned int bytes)
 #else
 void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out);
 #endif
-void perl_call(char *file, char *func, char **args);
+void perl_call(char *func, char **args);
 
 extern char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
 extern char perlrcv[256];
 #else
 #define plstart()
 #define plstop()
+#define exitperl()
 #if NBITS>0
 #define plwrite(user, src, dst, direct, bytes)
 #define pl_recv_pkt(src, srcip, dstip, in, nexthop, len, input, output, src_as, dst_as, proto, src_port, dst_port, pkts, src_class, dst_class)

@@ -5,3 +5,4 @@
 - netflow v9
 - "snap" option in config line
 - put extra info in snap (pkts, proto, ports)
+- reloading perl filter: delete functions before reload

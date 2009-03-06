@@ -46,9 +46,9 @@ void debug(int level, char *format, ...)
   va_list arg;
   va_start(arg, format);
   if (level<=verbose)
-  { vfprintf(stdout, format, arg);
-    fputs("\n", stdout);
-    fflush(stdout);
+  { vfprintf(stderr, format, arg);
+    fputs("\n", stderr);
+    fflush(stderr);
   }
   va_end(arg);
 }
@@ -496,6 +496,7 @@ static int parse_file(FILE *f)
       if (p) *p++='\0';
       strncpy(perlincfunc, p1, sizeof(perlincfunc)-1);
       perlincargs[i=0]=NULL;
+      debug(3, "perlinclude %s:%s(%s", perlincfile, perlincfunc, p ? p : ")");
       while (p && *p && isspace(*p)) p++;
       if (p && *p && *p!=')')
         while (p && *p)
@@ -547,8 +548,17 @@ static int parse_file(FILE *f)
         {
           free(perlincargs[i]);
           perlincargs[i]=NULL;
-          continue;
         }
+        continue;
+      }
+      if (PerlStart(perlincfile)) /* is it better then do it on child? */
+      {
+        for(i=0; perlincargs[i]; i++)
+        {
+          free(perlincargs[i]);
+          perlincargs[i]=NULL;
+        }
+        continue;
       }
       fflush(stdout);
       fflush(stderr);
@@ -569,8 +579,7 @@ static int parse_file(FILE *f)
         close(h[0]);
         dup2(h[1], fileno(stdout));
         close(h[1]);
-        exitperl();
-        perl_call(perlincfile, perlincfunc, perlincargs);
+        perl_call(perlincfunc, perlincargs);
         exit(0);
       }
       for(i=0; perlincargs[i]; i++)
@@ -587,7 +596,6 @@ static int parse_file(FILE *f)
       continue;
     }
 #endif
-
     parse_line(str);
   } 
   return 0;
@@ -667,19 +675,7 @@ int config(char *name)
 #endif
 #ifdef DO_PERL
   if (!preproc)
-  {
-    static struct stat spfile, sperlfile;
-    if (stat(perlfile, &spfile))
-    { warning("Can't stat %s!", perlfile);
-      return 1;
-    }
-    spfile.st_atime = spfile.st_mtime;
-    if (memcmp(&spfile, &sperlfile, sizeof(spfile)))
-    { exitperl();
-      PerlStart(perlfile);
-    }
-    memcpy(&sperlfile, &spfile, sizeof(spfile));
-  }
+    PerlStart(perlfile);
 #endif
   return 0;
 }

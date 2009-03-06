@@ -107,20 +107,24 @@ void exitperl(void)
   {
     perl_destruct(perl);
     perl_free(perl);
+#ifdef PERL_SYS_TERM
+    PERL_SYS_TERM();
+#endif
     perl=NULL;
   }
 }
 
 int PerlStart(char *perlfile)
 {
-  int rc;
-  static char *perlargs[]={"", NULL, NULL, NULL};
+  const char *perlargs[]={"flowd", "-e", "0", NULL};
+  char **argv = (char **)perlargs;
   char cmd[256];
   SV *sv;
+  char **env  = { NULL };
+  struct stat spfile;
+  static struct stat sperlfile;
 
-  perlargs[1] = "-e";
-  perlargs[2] = "0";
-  if (access(perlfile, R_OK))
+  if (access(perlfile, R_OK) || stat(perlfile, &spfile))
   { char errstr[256];
 #ifdef HAVE_STRERROR_R
     strerror_r(errno, errstr, sizeof(errstr));
@@ -134,43 +138,46 @@ int PerlStart(char *perlfile)
     warning("Can't read %s: %s", perlfile, errstr);
     return 1;
   }
-  perl = perl_alloc();
-  perl_construct(perl);
-  rc=perl_parse(perl, xs_init, 2, perlargs, NULL);
-  if (rc)
-  { warning("Can't parse %s", perlfile);
-    perl_destruct(perl);
-    perl_free(perl);
-    perl=NULL;
-    return 1;
+  spfile.st_atime = spfile.st_mtime;
+  if (perl && memcmp(&spfile, &sperlfile, sizeof(spfile)) == 0)
+  { /* no changes - not needed to reload perl file */
+    return 0;
   }
-  /* Set warn and die hooks */
-  if (PL_warnhook) SvREFCNT_dec (PL_warnhook);
-  if (PL_diehook ) SvREFCNT_dec (PL_diehook );
-  PL_warnhook = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
-  PL_diehook  = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
+  memcpy(&sperlfile, &spfile, sizeof(spfile));
+
+  if (!perl)
+  {
+    perl = perl_alloc();
+    perl_construct(perl);
+#ifdef PERL_EXIT_DESTRUCT_END
+    PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
+#endif
+    if (perl_parse(perl, xs_init, 3, argv, env))
+    { warning("Can't parse %s", perlfile);
+      exitperl();
+      return 1;
+    }
+    /* Set warn and die hooks */
+    if (PL_warnhook) SvREFCNT_dec (PL_warnhook);
+    if (PL_diehook ) SvREFCNT_dec (PL_diehook );
+    PL_warnhook = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
+    PL_diehook  = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
+  }
   /* run main program body */
   snprintf(cmd, sizeof(cmd), "do '%s'; $@ ? $@ : '';", perlfile);
   sv = perl_eval_pv (cmd, TRUE);
   if (!SvPOK(sv)) {
     error("Syntax error in internal perl expression: %s", cmd);
-    rc = 1;
+    return 0;
   } else if (SvTRUE (sv)) {
     perl_warn_sv (sv);
-    rc = 1;
-  }
-  if (rc) {
-    perl_destruct(perl);
-    perl_free(perl);
-    perl = NULL;
     return 0;
   }
   plstart_ok = plstop_ok = plwrite_ok = 0;
   if (perl_get_cv("startwrite", FALSE)) plstart_ok    = 1;
   if (perl_get_cv("stopwrite",  FALSE)) plstop_ok     = 1;
-  if (perl_get_cv("write",      FALSE)) plwrite_ok    = 1;
+  if (perl_get_cv("writetraf",  FALSE)) plwrite_ok    = 1;
   if (perl_get_cv("recv_pkt",   FALSE)) plrcv_ok      = 1;
-  atexit(exitperl);
   return 0;
 }
 
@@ -183,7 +190,7 @@ void plstart(void)
     SAVETMPS;
     PUSHMARK(SP);
     PUTBACK;
-    perl_call_pv(perlstart, G_EVAL|G_SCALAR);
+    perl_call_pv(perlstart, G_EVAL|G_DISCARD|G_NOARGS);
     SPAGAIN;
     PUTBACK;
     FREETMPS;
@@ -202,7 +209,7 @@ void plstop(void)
     SAVETMPS;
     PUSHMARK(SP);
     PUTBACK;
-    perl_call_pv(perlstop, G_EVAL|G_SCALAR);
+    perl_call_pv(perlstop, G_EVAL|G_DISCARD|G_NOARGS);
     SPAGAIN;
     PUTBACK;
     FREETMPS;
@@ -247,13 +254,13 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
     SAVETMPS;
     PUSHMARK(SP);
     PUTBACK;
-    perl_call_pv(perlwrite, G_EVAL|G_SCALAR);
+    perl_call_pv(perlwrite, G_EVAL|G_DISCARD|G_NOARGS);
     SPAGAIN;
     PUTBACK;
     FREETMPS;
     LEAVE;
     if (SvTRUE(ERRSV))
-      sub_err("write");
+      sub_err("writetraf");
   }
 }
 
@@ -322,7 +329,7 @@ char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
     SAVETMPS;
     PUSHMARK(SP);
     PUTBACK;
-    perl_call_pv(perlrcv, G_EVAL|G_SCALAR);
+    perl_call_pv(perlrcv, G_EVAL|G_SCALAR|G_NOARGS);
     SPAGAIN;
     svret=POPs;
     if (SvTRUE(svret))
@@ -408,29 +415,25 @@ char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
   return prc ? pr : NULL;
 }
 
-void perl_call(char *file, char *func, char **args)
+void perl_call(char *func, char **args)
 {
   STRLEN n_a;
 
-  if (PerlStart(file) == 0)
+  dSP;
+  ENTER;
+  SAVETMPS;
+  PUSHMARK(SP);
+  while (*args)
   {
-    dSP;
-    ENTER;
-    SAVETMPS;
-    PUSHMARK(SP);
-    while (*args)
-    {
-      XPUSHs(sv_2mortal(newSVpv(*args, 0)));
-      args++;
-    }
-    PUTBACK;
-    perl_call_pv(func, G_EVAL|G_SCALAR);
-    SPAGAIN;
-    PUTBACK;
-    FREETMPS;
-    LEAVE;
-    if (SvTRUE(ERRSV))
-      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
-    exitperl();
+    XPUSHs(sv_2mortal(newSVpv(*args, 0)));
+    args++;
   }
+  PUTBACK;
+  perl_call_pv(func, G_EVAL|G_DISCARD);
+  SPAGAIN;
+  PUTBACK;
+  FREETMPS;
+  LEAVE;
+  if (SvTRUE(ERRSV))
+    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
 }

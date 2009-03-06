@@ -96,6 +96,7 @@ static void exitfunc(void)
     child_pid = -1;
   }
 #endif
+  exitperl();
 }
 
 static void hup(int signo)
@@ -236,7 +237,7 @@ static int buf2queue(u_long s_addr, int n, char *buf)
   u_long newhead = (shq_head + 1) % SHQSIZE;
 
   if (newhead == shq_tail) {
-    warning("shared buffed full (too slow cpu?)");
+    warning("shared buffer full (too slow cpu?)");
     return -1;
   }
   shq[shq_head].s_addr = s_addr;
