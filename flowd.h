@@ -153,6 +153,7 @@ void plwrite(char *user, char *src, char *dst, char *direct, unsigned int bytes)
 void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out);
 #endif
 void perl_call(char *func, char **args);
+void plcheckfuncs(void);
 
 extern char perlfile[256], perlstart[256], perlwrite[256], perlstop[256];
 extern char perlrcv[256];

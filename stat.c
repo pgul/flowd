@@ -334,8 +334,8 @@ void write_stat(void)
   plstart();
 #ifdef DO_MYSQL
   tm_now=localtime(&last_write);
-  strftime( table, sizeof( table), mysql_table,   tm_now);
-  strftime(stamp,  sizeof(stamp), "%Y%m%d%H%M%S", tm_now);
+  strftime(table, sizeof(table), mysql_table,    tm_now);
+  strftime(stamp, sizeof(stamp), "%Y%m%d%H%M%S", tm_now);
 #if NBITS>0
   p=enums;
 #if NCLASSES==65536

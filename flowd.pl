@@ -37,7 +37,7 @@ sub stopwrite
 	undef($dbh);
 }
 
-sub writetraf
+sub writestat
 {
 # $user, $bytes_in, $bytes_out
 	die "Not connected\n" unless $dbh;

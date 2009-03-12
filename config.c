@@ -544,7 +544,7 @@ static int parse_file(FILE *f)
       perlincargs[i]=NULL;
       if (pipe(h))
       { warning("Can't create pipe: %s", strerror(errno));
-        for(i=0; perlincargs[i]; i++)
+        for (i=0; perlincargs[i]; i++)
         {
           free(perlincargs[i]);
           perlincargs[i]=NULL;
@@ -553,7 +553,7 @@ static int parse_file(FILE *f)
       }
       if (PerlStart(perlincfile)) /* is it better then do it on child? */
       {
-        for(i=0; perlincargs[i]; i++)
+        for (i=0; perlincargs[i]; i++)
         {
           free(perlincargs[i]);
           perlincargs[i]=NULL;
@@ -567,7 +567,7 @@ static int parse_file(FILE *f)
       { warning("Can't fork: %s!", strerror(errno));
         close(h[0]);
         close(h[1]);
-        for(i=0; perlincargs[i]; i++)
+        for (i=0; perlincargs[i]; i++)
         {
           free(perlincargs[i]);
           perlincargs[i]=NULL;
@@ -580,9 +580,10 @@ static int parse_file(FILE *f)
         dup2(h[1], fileno(stdout));
         close(h[1]);
         perl_call(perlincfunc, perlincargs);
+        debug(3, "perl_include(%s:%s) ok", perlincfile, perlincfunc);
         exit(0);
       }
-      for(i=0; perlincargs[i]; i++)
+      for (i=0; perlincargs[i]; i++)
       {
         free(perlincargs[i]);
         perlincargs[i]=NULL;
@@ -614,7 +615,7 @@ int config(char *name)
 #ifdef DO_PERL
   strcpy(perlfile,     "flowd.pl"  );
   strcpy(perlstart,    "startwrite");
-  strcpy(perlwrite,    "write"     );
+  strcpy(perlwrite,    "writestat" );
   strcpy(perlstop,     "stopwrite" );
   strcpy(perlrcv,      "recv_pkt"  );
 #endif
@@ -675,7 +676,9 @@ int config(char *name)
 #endif
 #ifdef DO_PERL
   if (!preproc)
-    PerlStart(perlfile);
+  { PerlStart(perlfile);
+    plcheckfuncs();
+  }
 #endif
   return 0;
 }

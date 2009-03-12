@@ -162,6 +162,7 @@ int PerlStart(char *perlfile)
     if (PL_diehook ) SvREFCNT_dec (PL_diehook );
     PL_warnhook = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
     PL_diehook  = newRV_inc ((SV*) perl_get_cv ("flowd_warn", TRUE));
+    debug(2, "PerlStart: perl alloc and construct ok");
   }
   /* run main program body */
   snprintf(cmd, sizeof(cmd), "do '%s'; $@ ? $@ : '';", perlfile);
@@ -173,12 +174,18 @@ int PerlStart(char *perlfile)
     perl_warn_sv (sv);
     return 0;
   }
-  plstart_ok = plstop_ok = plwrite_ok = 0;
-  if (perl_get_cv("startwrite", FALSE)) plstart_ok    = 1;
-  if (perl_get_cv("stopwrite",  FALSE)) plstop_ok     = 1;
-  if (perl_get_cv("writetraf",  FALSE)) plwrite_ok    = 1;
-  if (perl_get_cv("recv_pkt",   FALSE)) plrcv_ok      = 1;
+  debug(2, "PerlStart(%s) ok", perlfile);
   return 0;
+}
+
+void plcheckfuncs(void)
+{
+  if (!perl) return;
+  plstart_ok = plstop_ok = plwrite_ok = plrcv_ok = 0;
+  if (perl_get_cv(perlstart, FALSE)) plstart_ok = 1;
+  if (perl_get_cv(perlstop,  FALSE)) plstop_ok  = 1;
+  if (perl_get_cv(perlwrite, FALSE)) plwrite_ok = 1;
+  if (perl_get_cv(perlrcv,   FALSE)) plrcv_ok   = 1;
 }
 
 void plstart(void)
@@ -418,22 +425,33 @@ char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
 void perl_call(char *func, char **args)
 {
   STRLEN n_a;
+  SV *sv;
 
-  dSP;
-  ENTER;
-  SAVETMPS;
-  PUSHMARK(SP);
-  while (*args)
-  {
-    XPUSHs(sv_2mortal(newSVpv(*args, 0)));
-    args++;
+  sv = perl_eval_pv ("$|=1; '';", TRUE);
+  if (!SvPOK(sv)) {
+    error("Syntax error in internal perl expression");
+    return;
+  } else if (SvTRUE (sv)) {
+    perl_warn_sv (sv);
+    return;
   }
-  PUTBACK;
-  perl_call_pv(func, G_EVAL|G_DISCARD);
-  SPAGAIN;
-  PUTBACK;
-  FREETMPS;
-  LEAVE;
-  if (SvTRUE(ERRSV))
-    warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  {
+    dSP;
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    while (*args)
+    {
+      XPUSHs(sv_2mortal(newSVpv(*args, 0)));
+      args++;
+    }
+    PUTBACK;
+    perl_call_pv(func, G_DISCARD);
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+    if (SvTRUE(ERRSV))
+      warning("Perl eval error: %s", SvPV(ERRSV, n_a));
+  }
 }
