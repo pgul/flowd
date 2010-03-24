@@ -130,7 +130,9 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
       {
         if (!pa->link && !pa->fallthru)
           break; // ignore
+#ifdef DO_PERL
 foundattr:
+#endif
         if (fsnap /*&& !pa->fallthru*/)
         { 
           fprintf(fsnap, "%s %u.%u.%u.%u->%u.%u.%u.%u (%s"
