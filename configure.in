@@ -7,7 +7,6 @@ AC_PROG_CC
 AC_PROG_AWK
 AC_PATH_PROG(PERL, perl, perl)
 
-CFLAGS=
 dnl Checks for header files.
 
 dnl Checks for typedefs, structures, and compiler characteristics.
