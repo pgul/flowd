@@ -1749,8 +1749,58 @@ fi
 rm -f conftest*
                 case x$snmp_ok in
                   xno)
-                    LIBS="$OLD_LIBS"
-                    LDFLAGS="$OLD_LDFLAGS"
+                    echo $ac_n "checking for -fstack-protector needed for libnetsnmp""... $ac_c" 1>&6
+echo "configure:1754: checking for -fstack-protector needed for libnetsnmp" >&5
+                    LDFLAGS="$OLD_LDFLAGS -fstack-protector"
+                    cat > conftest.$ac_ext <<EOF
+#line 1757 "configure"
+#include "confdefs.h"
+
+int main() {
+snmp_sess_init()
+; return 0; }
+EOF
+if { (eval echo configure:1764: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+  rm -rf conftest*
+  echo "$ac_t""yes" 1>&6; snmp_ok=yes
+else
+  echo "configure: failed program was:" >&5
+  cat conftest.$ac_ext >&5
+  rm -rf conftest*
+  echo "$ac_t""no" 1>&6
+fi
+rm -f conftest*
+                    case x$snmp_ok in
+                      xno)
+                        echo $ac_n "checking for -fstack-protector needed for libnetsnmp in /usr/local/lib""... $ac_c" 1>&6
+echo "configure:1777: checking for -fstack-protector needed for libnetsnmp in /usr/local/lib" >&5
+                        LDFLAGS="$LDFLAGS -L/usr/local/lib"
+                        cat > conftest.$ac_ext <<EOF
+#line 1780 "configure"
+#include "confdefs.h"
+
+int main() {
+snmp_sess_init()
+; return 0; }
+EOF
+if { (eval echo configure:1787: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+  rm -rf conftest*
+  echo "$ac_t""yes" 1>&6; snmp_ok=yes
+else
+  echo "configure: failed program was:" >&5
+  cat conftest.$ac_ext >&5
+  rm -rf conftest*
+  echo "$ac_t""no" 1>&6
+fi
+rm -f conftest*
+                        case x$snmp_ok in
+                          xno)
+                            LIBS="$OLD_LIBS"
+                            LDFLAGS="$OLD_LDFLAGS"
+                            ;;
+                        esac
+                        ;;
+                    esac
                     ;;
                 esac
                 ;;
@@ -1763,18 +1813,18 @@ rm -f conftest*
         case x$snmp_ok in
           xno)
             echo $ac_n "checking for libsnmp""... $ac_c" 1>&6
-echo "configure:1767: checking for libsnmp" >&5
+echo "configure:1817: checking for libsnmp" >&5
             OLD_LIBS="$LIBS"
             LIBS="$LIBS -lsnmp -lcrypto"
             cat > conftest.$ac_ext <<EOF
-#line 1771 "configure"
+#line 1821 "configure"
 #include "confdefs.h"
 
 int main() {
 snmp_sess_init()
 ; return 0; }
 EOF
-if { (eval echo configure:1778: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1828: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   echo "$ac_t""yes" 1>&6
 else
@@ -1787,18 +1837,18 @@ rm -f conftest*
             case x$snmp_ok in
               xno)
                 echo $ac_n "checking for libsnmp in /usr/local/lib""... $ac_c" 1>&6
-echo "configure:1791: checking for libsnmp in /usr/local/lib" >&5
+echo "configure:1841: checking for libsnmp in /usr/local/lib" >&5
                 OLD_LDFLAGS="$LDFLAGS"
                 LDFLAGS="$LDFLAGS -L/usr/local/lib"
                 cat > conftest.$ac_ext <<EOF
-#line 1795 "configure"
+#line 1845 "configure"
 #include "confdefs.h"
 
 int main() {
 snmp_sess_init()
 ; return 0; }
 EOF
-if { (eval echo configure:1802: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1852: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   echo "$ac_t""yes" 1>&6; snmp_ok=yes
 else
