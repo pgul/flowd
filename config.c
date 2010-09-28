@@ -86,6 +86,7 @@ static void read_ip(char *p, u_long *ip, u_long *mask)
     exit(2);
   }
   *ip = ntohl(addr);
+  *mask = 0xffffffffu;
   if (c=='/')
     *mask<<=(32-atoi(p1+1));
   *p1=c;
