@@ -83,8 +83,6 @@ int reload_acl(void)
 
 int find_mask(unsigned long remote)
 {
-  if (fromshmem) return getclass(htonl(remote));
-  if (!fromacl) return 0;
   if (remote==0xe0000005ul)
     return 1; /* ospf multicast */
   if ((remote & 0xff000000u) == 0x0a000000u ||

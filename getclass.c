@@ -14,12 +14,11 @@ classtype getclass(unsigned long addr)
 	return map[addr];
 #else
 	unsigned char bits, mask;
-	unsigned int offs = (unsigned int)(ntohl(addr));
-	offs >>= (32-MAXPREFIX);
-	bits = (offs%(8/NBITS))*NBITS;
+	addr >>= (32-MAXPREFIX);
+	bits = (addr%(8/NBITS))*NBITS;
 	mask = (0xff >> (8-NBITS))<<bits;
-	offs /= (8/NBITS);
-	return (map[offs] & mask) >> bits;;
+	addr /= (8/NBITS);
+	return (map[addr] & mask) >> bits;;
 #endif
 }
 

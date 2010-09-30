@@ -55,8 +55,16 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
   sigaddset(&set, SIGALRM);
   sigprocmask(SIG_BLOCK, &set, &oset);
 #if NBITS>0
-  src_class=find_mask(src_ip);
-  dst_class=find_mask(dst_ip);
+  if (fromshmem)
+  {
+    src_class=getclass(src_ip);
+    dst_class=getclass(dst_ip);
+  } else if (fromacl)
+  {
+    src_class=find_mask(src_ip);
+    dst_class=find_mask(dst_ip);
+  } else
+    src_class = dst_class = 0;
 #endif
 #ifdef DO_PERL
   p = pl_recv_pkt(&src, &srcip, &dstip, &in, &nexthop, &len, &input, &output,
