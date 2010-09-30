@@ -8,7 +8,7 @@
 #define MAXLOST		3000 /* ~1000 packets */
 #define MAXVRF		32
 #define RECVBUF		262144
-#define SHQSIZE		10000 /* pkts, bufsize ~2M */
+#define SHQSIZE		100000 /* pkts, bufsize ~16M */
 #define WRITE_INTERVAL	(60*60)
 #define RELOAD_INTERVAL	(60*10)
 #define SNAP_TIME	60
