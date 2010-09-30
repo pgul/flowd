@@ -192,7 +192,7 @@ int usage(void)
   return 0;
 }
 
-static int queue2buf(u_long *s_addr, char **buf, int *len)
+static int queue2buf(struct in_addr *src_addr, char **buf, int *len)
 {
   socklen_t sl;
   struct sockaddr_in remote_addr;
@@ -206,7 +206,7 @@ static int queue2buf(u_long *s_addr, char **buf, int *len)
     memset(&remote_addr, 0, sizeof(remote_addr)),
     n = recvfrom(sockfd, databuf, sizeof(databuf), 0, (struct sockaddr *)&remote_addr, &sl);
     if (n == -1) return -1;
-    *s_addr = remote_addr.sin_addr.s_addr;
+    *src_addr = remote_addr.sin_addr;
     *len = n;
     *buf = databuf;
     return 0;
@@ -220,7 +220,7 @@ static int queue2buf(u_long *s_addr, char **buf, int *len)
       return 0;
     }
   }
-  *s_addr = shq[shq_tail].s_addr;
+  src_addr->s_addr = shq[shq_tail].s_addr;
   *len = shq[shq_tail].psize;
   *buf = shq[shq_tail].data;
   if (shq_tail == SHQSIZE - 1)
@@ -232,7 +232,7 @@ static int queue2buf(u_long *s_addr, char **buf, int *len)
 }
 
 #if defined(WITH_THREADS) || defined(WITH_RECEIVER)
-static int buf2queue(u_long s_addr, int n, char *buf)
+static int buf2queue(struct in_addr src_addr, int n, char *buf)
 {
   u_long newhead = (shq_head + 1) % SHQSIZE;
 
@@ -240,7 +240,7 @@ static int buf2queue(u_long s_addr, int n, char *buf)
     warning("shared buffer full (too slow cpu?)");
     return -1;
   }
-  shq[shq_head].s_addr = s_addr;
+  shq[shq_head].s_addr = src_addr.s_addr;
   shq[shq_head].psize = n;
   memcpy(shq[shq_head].data, buf, n);
   flow_sem_lock();
@@ -261,7 +261,7 @@ static void *recvpkts(void *args)
          memset(&remote_addr, 0, sizeof(remote_addr)),
          n=recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&remote_addr, &sl)) != -1) {
     if (n == 0) continue;
-    buf2queue(remote_addr.sin_addr.s_addr, n, buf);
+    buf2queue(remote_addr.sin_addr, n, buf);
   }
   warning("recvfrom error: %s", strerror(errno));
   return NULL;
@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
   FILE *f;
   struct sockaddr_in my_addr;
   char *pbuf;
-  u_long s_addr;
+  struct in_addr s_addr;
 
   confname=CONFNAME;
   daemonize=0;
@@ -428,10 +428,10 @@ int main(int argc, char *argv[])
       i = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
       flow_sem_unlock();
       debug(4, "Received %u v1-flows from %s (queue %u)",
-            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr), i);
+            count, inet_ntoa(s_addr), i);
 #else
       debug(4, "Received %u v1-flows from %s",
-            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr));
+            count, inet_ntoa(s_addr));
 #endif
       for (i=0; i<count; i++)
       {
@@ -442,10 +442,10 @@ int main(int argc, char *argv[])
         pkts=ntohl(data1[i].pkts);
         input=ntohs(data1[i].input);
         output=ntohs(data1[i].output);
-        add_stat(s_addr, data1[i].srcaddr, data1[i].dstaddr,
+        add_stat(s_addr.s_addr, data1[i].srcaddr, data1[i].dstaddr,
                  1, 0, bytes, input, output, 0, 0, data1[i].prot,
                  data1[i].srcport, data1[i].dstport, pkts);
-        add_stat(s_addr, data1[i].srcaddr, data1[i].dstaddr,
+        add_stat(s_addr.s_addr, data1[i].srcaddr, data1[i].dstaddr,
                  0, data1[i].nexthop, bytes, input, output, 0,0, data1[i].prot,
                  data1[i].srcport, data1[i].dstport, pkts);
       }
@@ -473,7 +473,7 @@ int main(int argc, char *argv[])
 #if 1
       /* check seq */
       for (pr=routers; pr; pr=pr->next)
-        if (pr->addr == s_addr)
+        if (pr->addr == s_addr.s_addr)
           break;
 #if 0
       if (pr == NULL && routers->addr == (u_long)-1 && routers->next == NULL)
@@ -484,10 +484,10 @@ int main(int argc, char *argv[])
       i = shq ? (shq_head + SHQSIZE - shq_tail) % SHQSIZE : 0;
       flow_sem_unlock();
       debug(4, "Received %u flows from %s (seq %lu, queue %u)",
-            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr), ntohl(head5->seq), i);
+            count, inet_ntoa(s_addr), ntohl(head5->seq), i);
 #else
       debug(4, "Received %u flows from %s (seq %lu)",
-            count, inet_ntoa(*(struct in_addr *)(void *)&s_addr), ntohl(head5->seq));
+            count, inet_ntoa(s_addr), ntohl(head5->seq));
 #endif
       if (pr) {
         unsigned seq = ntohl(head5->seq);
@@ -504,11 +504,11 @@ int main(int argc, char *argv[])
               flow_sem_unlock();
               warning("warning: lost %u flows (%u packets) from %s, qsize %lu",
                       seq - pr->seq[i], (seq - pr->seq[i]) / count,
-                      inet_ntoa(*(struct in_addr *)(void *)&s_addr), qfill);
+                      inet_ntoa(s_addr), qfill);
 #else
               warning("warning: lost %u flows (%u packets) from %s",
                       seq - pr->seq[i], (seq - pr->seq[i]) / count,
-                      inet_ntoa(*(struct in_addr *)(void *)&s_addr));
+                      inet_ntoa(s_addr));
 #endif
               break;
             }
@@ -535,10 +535,10 @@ int main(int argc, char *argv[])
         output=ntohs(data5[i].output);
         src_as=ntohs(data5[i].src_as);
         dst_as=ntohs(data5[i].dst_as);
-        add_stat(s_addr, data5[i].srcaddr, data5[i].dstaddr,
+        add_stat(s_addr.s_addr, data5[i].srcaddr, data5[i].dstaddr,
                  1, 0, bytes, input, output, src_as, dst_as, data5[i].prot,
                  data5[i].srcport, data5[i].dstport, pkts);
-        add_stat(s_addr, data5[i].srcaddr, data5[i].dstaddr,
+        add_stat(s_addr.s_addr, data5[i].srcaddr, data5[i].dstaddr,
                  0, data5[i].nexthop, bytes, input, output, src_as, dst_as,
                  data5[i].prot, data5[i].srcport, data5[i].dstport, pkts);
       }
