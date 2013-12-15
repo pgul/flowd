@@ -19,8 +19,8 @@ struct linktype *linkhead=NULL;
 char logname[256]=LOGNAME, snapfile[256]=SNAPFILE, aclname[256]=ACLNAME;
 char pidfile[256]=PIDFILE;
 int  write_interval=WRITE_INTERVAL;
-u_long bindaddr=INADDR_ANY;
-unsigned short port=PORT;
+uint32_t bindaddr=INADDR_ANY;
+uint16_t port=PORT;
 #if NBITS>0
 int  reload_interval=RELOAD_INTERVAL;
 long mapkey;
@@ -38,7 +38,7 @@ struct router_t *routers;
 static struct router_t *cur_router, *old_routers;
 
 #ifdef DO_SNMP
-static unsigned short get_ifindex(struct router_t*, enum ifoid_t, char **s);
+static uint16_t get_ifindex(struct router_t*, enum ifoid_t, char **s);
 #endif
 
 void debug(int level, char *format, ...)
@@ -73,10 +73,10 @@ static void freerouter(struct router_t *router)
   }
 }
 
-static void read_ip(char *p, u_long *ip, u_long *mask)
+static void read_ip(char *p, uint32_t *ip, uint32_t *mask)
 {
   char c, *p1;
-  long addr;
+  uint32_t addr;
 
   for (p1=p; *p1 && (isdigit(*p1) || *p1=='.'); p1++);
   c=*p1;
@@ -330,7 +330,7 @@ static int parse_line(char *str)
     /* get router address */
     if ((he=gethostbyname(p))==0 || he->h_addr_list[0]==NULL)
     { if (strcmp(p, "any")==0)
-        cur_router->addr=(u_long)-1;
+        cur_router->addr=(uint32_t)-1;
       else
         warning("Warning: Router %s not found", p);
       return 0;
@@ -359,7 +359,7 @@ static int parse_line(char *str)
   pa->link = pl;
   pa->next = NULL;
   pa->reverse=pa->fallthru=0;
-  if (cur_router->addr!=(u_long)-1)
+  if (cur_router->addr!=(uint32_t)-1)
     pa->src=ntohl(cur_router->addr);	/* mask /32 */
   else
     pa->src=pa->srcmask=0;		/* match any */
@@ -404,7 +404,7 @@ static int parse_line(char *str)
       read_ports(p+10, &pa->lport1, &pa->lport2, pa->proto);
     else if (strncasecmp(p, "src=", 4)==0)
     {
-      if (pa->srcmask == (u_long)-1)
+      if (pa->srcmask == (uint32_t)-1)
         warning("src has no effect inside router section");
       else {
         p+=4;
@@ -643,7 +643,7 @@ int config(char *name)
   linkhead = NULL;
   old_routers = routers;
   cur_router = routers = calloc(1, sizeof(struct router_t));
-  cur_router->addr = (u_long)-1;
+  cur_router->addr = (uint32_t)-1;
 #if NBITS>0
   { int i;
     for (i=0; i<NCLASSES; i++)
@@ -913,14 +913,14 @@ static int snmpwalk(struct router_t *router, enum ifoid_t noid)
   return 0;
 }
 
-static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
+static uint16_t get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
 {
   int left, right, mid, i;
   char val[256], *p;
 
-  if (router->addr==(u_long)-1)
+  if (router->addr==(uint32_t)-1)
   { warning("Router not specified for %s", oid2str(oid));
-    return (unsigned short)-2; /* not matched for any interface */
+    return (uint16_t)-2; /* not matched for any interface */
   }
   if ((p=strchr(*s, '=')) == NULL)
   { error("Internal error");
@@ -988,7 +988,7 @@ static unsigned short get_ifindex(struct router_t *router, enum ifoid_t oid, cha
   }
   warning("%s %s not found at %s", oid2str(oid), val,
          inet_ntoa(*(struct in_addr *)(void *)&(router->addr)));
-  return (unsigned short)-2;
+  return (uint16_t)-2;
 }
 #endif
 

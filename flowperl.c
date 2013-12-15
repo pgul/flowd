@@ -271,16 +271,16 @@ void plwrite(char *user, unsigned int bytes_in, unsigned int bytes_out)
   }
 }
 
-char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
-                  u_long *nexthop, u_long *len, u_short *input, u_short *output,
-                  u_short *src_as, u_short *dst_as, u_short *proto,
-                  u_short *src_port, u_short *dst_port, u_long *pkts
+char *pl_recv_pkt(uint32_t *src, uint32_t *srcip, uint32_t *dstip, int *in,
+                  uint32_t *nexthop, uint32_t *len, uint16_t *input, uint16_t *output,
+                  uint16_t *src_as, uint16_t *dst_as, uint16_t *proto,
+                  uint16_t *src_port, uint16_t *dst_port, uint32_t *pkts
 #if NBITS>0
-                  , u_short *src_class, u_short *dst_class
+                  , uint16_t *src_class, uint16_t *dst_class
 #endif
                  )
 {
-  u_long addr;
+  uint32_t addr;
   char *prc, *p;
   static char pr[256];
   struct protoent *pe;

@@ -60,15 +60,15 @@ struct linktype {
 };
 
 struct attrtype {
-	u_long ip, mask;
-	u_long remote, remotemask;
-	u_long nexthop;
-	u_long src, srcmask, not;
+	uint32_t ip, mask;
+	uint32_t remote, remotemask;
+	uint32_t nexthop;
+	uint32_t src, srcmask, not;
 	struct linktype *link;
 	struct attrtype *next;
 	int reverse, fallthru, in;
-	unsigned short iface, liface, as, class, proto;
-	unsigned short port1, port2, lport1, lport2;
+	uint16_t iface, liface, as, class, proto;
+	uint16_t port1, port2, lport1, lport2;
 };
 
 #ifdef DO_SNMP
@@ -77,13 +77,13 @@ enum ifoid_t { IFNAME, IFDESCR, IFALIAS, IFIP };
 #endif
 
 struct router_t {
-  u_long addr;
+  uint32_t addr;
 #ifdef DO_SNMP
   char community[256];
   int  ifnumber;
   int  nifaces[NUM_OIDS];
   struct routerdata {
-    unsigned short ifindex;
+    uint16_t ifindex;
     char *val;
   } *data[NUM_OIDS];
 #endif
@@ -107,8 +107,8 @@ extern struct linktype *linkhead;
 extern char logname[], snapfile[], pidfile[];
 extern int write_interval;
 extern int verbose, preproc;
-extern unsigned long bindaddr;
-extern unsigned short port;
+extern uint32_t bindaddr;
+extern uint16_t port;
 #if NBITS>0
 extern int  reload_interval, fromshmem, fromacl;
 extern char aclname[];
@@ -117,19 +117,19 @@ extern char uaname[NCLASSES][32];
 extern int  uaindex[NCLASSES];
 #endif
 
-void add_stat(u_long flowsrc, u_long srcaddr, u_long dstaddr, int in,
-              u_long nexthop, u_long bytes, u_short input, u_short output,
-              u_short src_as, u_short dst_as, u_short proto,
-              u_short srcport, u_short dstport, u_long pkts);
+void add_stat(uint32_t flowsrc, uint32_t srcaddr, uint32_t dstaddr, int in,
+              uint32_t nexthop, uint32_t bytes,   uint16_t input, uint16_t output,
+              uint16_t src_as,  uint16_t dst_as,  uint16_t proto,
+              uint16_t srcport, uint16_t dstport, uint32_t pkts);
 void write_stat(void);
 int  config(char *name);
 void debug(int level, char *format, ...);
 void warning(char *format, ...);
 void error(char *format, ...);
 #if NBITS>0
-int  find_mask(unsigned long addr);
+int  find_mask(uint32_t addr);
 int  reload_acl(void);
-classtype getclass(unsigned long addr);
+classtype getclass(uint32_t addr);
 int  init_map(void);
 void freeshmem(void);
 #endif
@@ -139,12 +139,12 @@ void exitperl(void);
 int  PerlStart(char *perlfile);
 void plstart(void);
 void plstop(void);
-char *pl_recv_pkt(u_long *src, u_long *srcip, u_long *dstip, int *in,
-                  u_long *nexthop, u_long *len, u_short *input, u_short *output,
-                  u_short *src_as, u_short *dst_as, u_short *proto,
-                  u_short *src_port, u_short *dst_port, u_long *pkts
+char *pl_recv_pkt(uint32_t *src, uint32_t *srcip, uint32_t *dstip, int *in,
+                  uint32_t *nexthop, uint32_t *len, uint16_t *input, uint16_t *output,
+                  uint16_t *src_as, uint16_t *dst_as, uint16_t *proto,
+                  uint16_t *src_port, uint16_t *dst_port, uint32_t *pkts
 #if NBITS>0
-                  , u_short *src_class, u_short *dst_class
+                  , uint16_t *src_class, uint16_t *dst_class
 #endif
                  );
 #if NBITS>0
@@ -175,7 +175,7 @@ extern char mysql_user[256], mysql_pwd[256], mysql_host[256];
 extern char mysql_socket[256], mysql_db[256];
 extern char mysql_table[256], mysql_utable[256], mysql_mtable[256];
 extern char mysql_itable[256];
-extern unsigned mysql_port; 
+extern unsigned int mysql_port; 
 
 void mysql_start(void);
 #endif 

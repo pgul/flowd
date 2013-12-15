@@ -21,22 +21,22 @@
 extern time_t snap_start;
 extern FILE *fsnap;
 
-void add_stat(u_long src, u_long srcip, u_long dstip, int in,
-              u_long nexthop, u_long len, u_short input, u_short output,
-              u_short src_as, u_short dst_as, u_short proto,
-              u_short srcport, u_short dstport, u_long pkts)
+void add_stat(uint32_t src, uint32_t srcip, uint32_t dstip, int in,
+              uint32_t nexthop, uint32_t len, uint16_t input, uint16_t output,
+              uint16_t src_as, uint16_t dst_as, u_int16_t proto,
+              uint16_t srcport, uint16_t dstport, uint32_t pkts)
 {
-  u_long local=0, remote=0, flowsrc;
+  uint32_t local=0, remote=0, flowsrc;
 #if NBITS>0
   int src_ua, dst_ua;
-  u_short remote_class, src_class, dst_class;
+  uint16_t remote_class, src_class, dst_class;
 #endif
-  u_short local_if, remote_if, remote_as;
-  u_short lport, rport;
+  uint16_t local_if, remote_if, remote_as;
+  uint16_t lport, rport;
   struct attrtype *pa;
   struct router_t *pr = NULL;
   sigset_t set, oset;
-  u_long src_ip, dst_ip;
+  uint32_t src_ip, dst_ip;
 #ifdef DO_PERL
   char *p;
   static struct attrtype fakeattr;
@@ -94,7 +94,7 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
 #endif
   for (pr=routers; pr; pr=pr->next)
   {
-    if (pr->addr != (u_long)-1 && pr->addr != src)
+    if (pr->addr != (uint32_t)-1 && pr->addr != src)
       continue;
     for (pa=pr->attrhead; pa; pa=pa->next)
     { if (in)
@@ -121,19 +121,19 @@ void add_stat(u_long src, u_long srcip, u_long dstip, int in,
         rport=ntohs(dstport);
       }
       if ((((flowsrc & pa->srcmask)==pa->src) == (pa->not==0)) &&
-           (pa->ip==(u_long)-1      || (remote & pa->mask)==pa->ip) &&
-           (pa->remote==(u_long)-1  || (local  & pa->remotemask)==pa->remote) &&
-           (pa->in==-1              || pa->in==(in^pa->reverse)) &&
-           (pa->nexthop==(u_long)-1 || (pa->nexthop==nexthop)) &&
-           (pa->as==(u_short)-1     || (pa->as==remote_as)) &&
-           (pa->iface==(u_short)-1  || (pa->iface==remote_if)) &&
-           (pa->liface==(u_short)-1 || (pa->liface==local_if)) &&
+           (pa->ip==(uint32_t)-1      || (remote & pa->mask)==pa->ip) &&
+           (pa->remote==(uint32_t)-1  || (local  & pa->remotemask)==pa->remote) &&
+           (pa->in==-1                || pa->in==(in^pa->reverse)) &&
+           (pa->nexthop==(uint32_t)-1 || (pa->nexthop==nexthop)) &&
+           (pa->as==(uint16_t)-1      || (pa->as==remote_as)) &&
+           (pa->iface==(uint16_t)-1   || (pa->iface==remote_if)) &&
+           (pa->liface==(uint16_t)-1  || (pa->liface==local_if)) &&
 #if NBITS>0
-           (pa->class==(u_short)-1  || (pa->class==remote_class)) &&
+           (pa->class==(uint16_t)-1   || (pa->class==remote_class)) &&
 #endif
-           (pa->proto==(u_short)-1  || pa->proto==proto) &&
-           (pa->port1==(u_short)-1 || (pa->port1<=lport && pa->port2>=lport)) &&
-           (pa->lport1==(u_short)-1 || (pa->lport1<=rport && pa->lport2>=rport))
+           (pa->proto==(uint16_t)-1   || pa->proto==proto) &&
+           (pa->port1==(uint16_t)-1   || (pa->port1<=lport && pa->port2>=lport)) &&
+           (pa->lport1==(uint16_t)-1  || (pa->lport1<=rport && pa->lport2>=rport))
           )
       {
         if (!pa->link && !pa->fallthru)
@@ -155,10 +155,10 @@ foundattr:
 #if NBITS>0
             uaname[uaindex[src_class]], uaname[uaindex[dst_class]],
 #endif
-            ((in^pa->reverse) ? "in" : "out"), len, pkts, src_as, dst_as,
+            ((in^pa->reverse) ? "in" : "out"), (u_long)len, (u_long)pkts, (unsigned)src_as, (unsigned)dst_as,
             ((char *)&nexthop)[0], ((char *)&nexthop)[1],
             ((char *)&nexthop)[2], ((char *)&nexthop)[3],
-            input, output,
+            (unsigned)input, (unsigned)output,
             ((char *)&src)[0], ((char *)&src)[1],
             ((char *)&src)[2], ((char *)&src)[3],
             pa->fallthru ? " (fallthru)" : "");
@@ -282,7 +282,7 @@ void mysql_start(void)
 	};
 
 	my_init();
-	load_defaults("my", groups, &myargc, &myargv);
+	my_load_defaults("my", groups, &myargc, &myargv);
 	optind = 1;
 	while ((c = getopt_long(myargc, myargv, "h:p::u:P:S:T:U:D:", long_options, &option_index)) != EOF)
 	{	switch (c)
