@@ -346,7 +346,11 @@ int main(int argc, char *argv[])
     /* return 1; */
   }
 #endif
-  if (daemonize && !verbose) daemon(0, 0);
+  if (daemonize && !verbose)
+    if (daemon(0, 0) != 0) {
+      fprintf(stderr, "can't daemonize: %s", strerror(errno));
+      return 1;
+    }
   f=fopen(pidfile, "w");
   if (f)
   { fprintf(f, "%u\n", (unsigned)getpid());

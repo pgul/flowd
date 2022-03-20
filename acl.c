@@ -82,7 +82,7 @@ int reload_acl(void)
   return reload_one_acl(&acl, aclname);
 }
 
-int find_mask(unsigned long remote)
+int find_mask(uint32_t remote)
 {
   if (remote==0xe0000005ul)
     return 1; /* ospf multicast */

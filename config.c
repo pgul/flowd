@@ -24,7 +24,7 @@ uint32_t bindaddr=INADDR_ANY;
 uint16_t port=PORT;
 #if NBITS>0
 int  reload_interval=RELOAD_INTERVAL;
-long mapkey;
+uint32_t mapkey;
 int  fromshmem, fromacl;
 char uaname[NCLASSES][32];
 int  uaindex[NCLASSES];
@@ -273,8 +273,8 @@ static int parse_line(char *str)
       return 0;
     }
     *p=0;
-    strncpy(perlfile, p1, sizeof(perlfile));
-    strncpy(perlwrite, p+2, sizeof(perlwrite));
+    strncpy(perlfile, p1, sizeof(perlfile)-1);
+    strncpy(perlwrite, p+2, sizeof(perlwrite)-1);
     return 0;
   }
 #endif
@@ -962,14 +962,14 @@ static uint16_t get_ifindex(struct router_t *router, enum ifoid_t oid, char **s)
   }
   /* copy value to val string */
   if (**s == '\"')
-  { strncpy(val, *s+1, sizeof(val));
+  { strncpy(val, *s+1, sizeof(val)-1);
     val[sizeof(val)-1] = '\0';
     if ((p=strchr(val, '\"')) != NULL)
       *p='\0';
     if ((p=strchr(*s, '\"')) != NULL)
       *s=p+1;
   } else
-  { strncpy(val, *s, sizeof(val));
+  { strncpy(val, *s, sizeof(val)-1);
     val[sizeof(val)-1] = '\0';
     for (p=val; *p && !isspace(*p); p++);
     *p='\0';

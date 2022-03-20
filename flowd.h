@@ -23,7 +23,7 @@
 #else
 #define MAPSIZE         (1<<MAXPREFIX)/(8/NBITS)
 #endif
-#define MAPKEY          (*(long *)"gul@")
+#define MAPKEY          (*(uint32_t *)"gul@")
 
 int flow_sem_init(void);
 int flow_sem_init_poster(void);
@@ -112,7 +112,7 @@ extern uint16_t port;
 #if NBITS>0
 extern int  reload_interval, fromshmem, fromacl;
 extern char aclname[];
-extern long mapkey;
+extern uint32_t mapkey;
 extern char uaname[NCLASSES][32];
 extern int  uaindex[NCLASSES];
 #endif

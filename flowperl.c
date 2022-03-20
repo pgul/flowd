@@ -128,7 +128,12 @@ int PerlStart(char *perlfile)
   if (access(perlfile, R_OK) || stat(perlfile, &spfile))
   { char errstr[256];
 #ifdef HAVE_STRERROR_R
-    strerror_r(errno, errstr, sizeof(errstr));
+  #if defined(__GLIBC__)
+    if (strerror_r(errno, errstr, sizeof(errstr)) == NULL)
+  #else
+    if (strerror_r(errno, errstr, sizeof(errstr)) != 0)
+  #endif
+      strncpy(errstr, strerror(errno), sizeof(errstr));
 #elif defined(HAVE_SYS_ERRLIST)
     strncpy(errstr, sys_errlist[errno], sizeof(errstr));
 #else

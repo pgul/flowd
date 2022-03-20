@@ -9,7 +9,7 @@
 static classtype *map;
 static int shmid=-1;
 
-classtype getclass(unsigned long addr)
+classtype getclass(uint32_t addr)
 {
 #if NBITS>=8
 	return map[addr];
