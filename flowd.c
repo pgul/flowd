@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
 #elif defined(WITH_RECEIVER)
   shbufid = -1;
   if (flow_sem_init() == 0) {
-    key_t key = *(unsigned long *)"flow"; /* or IPC_PRIVATE? */
+    key_t key = *(uint32_t *)"flow"; /* or IPC_PRIVATE? */
     shbufid = shmget(key, SHBUFSIZE, IPC_CREAT|0600);
     if (shbufid == -1) {
       warning("Can't allocate %u bytes of shared memory: %s", SHBUFSIZE, strerror(errno));
