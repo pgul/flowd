@@ -1,5 +1,6 @@
 
 #include <sys/types.h>
+#include <stdint.h>
 #include "flowd.h"
 
 #ifdef WITH_THREADS
